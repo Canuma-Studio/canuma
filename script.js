@@ -268,35 +268,55 @@ function runLoops() {
 }
 new IntersectionObserver(([e]) => { workVisible = e.isIntersecting; runLoops(); }, { threshold: .15 }).observe(work);
 
-// 01 ChefKlick: Aufgaben werden abgehakt, die Ringe füllen sich
-const ckRows = [...document.querySelectorAll('.ck-mods li')];
-const ckRings = { day: document.querySelector('[data-ring="day"]'), week: document.querySelector('[data-ring="week"]') };
-document.querySelector('.ck-date').textContent = zh({ weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date());
-const tm = zh({ hour: '2-digit', minute: '2-digit' });
-function ckSet(li, n) {
-  const total = +li.dataset.total; li.n = n;
-  li.querySelector('.ct').textContent = `${n} / ${total}`;
-  const done = n >= total; li.classList.toggle('done', done);
-  li.querySelector('small').textContent = done ? `${li.dataset.who} · ${tm.format(new Date())}` : (li.dataset.week !== undefined ? 'diese Woche' : 'offen');
-  const day = ckRows.filter(r => r.dataset.week === undefined), week = ckRows.filter(r => r.dataset.week !== undefined);
-  const pct = rows => Math.round(100 * rows.reduce((a, r) => a + (r.n || 0), 0) / rows.reduce((a, r) => a + +r.dataset.total, 0));
-  for (const [k, rows] of [['day', day], ['week', week]]) {
-    const v = pct(rows); ckRings[k].style.setProperty('--off', 100 - v); ckRings[k].querySelector('b').textContent = v + '%';
-  }
+// 01 ChefKlick: Aufgaben werden abgehakt, dann scrollt der Bildschirm zum Monatsring
+const ckScreen = document.querySelector('.ck'), ckScroll = document.querySelector('.ck-scroll');
+const ckPills = [...document.querySelectorAll('.ck-pill[data-total]')], ckRingsEl = document.querySelector('.ck-rings');
+const ckTicks = document.querySelector('.ck-ticks');
+const today = new Date(), zDay = +zh({ day: 'numeric' }).format(today);
+const zY = +zh({ year: 'numeric' }).format(today), zM = +zh({ month: 'numeric' }).format(today);
+const daysInMonth = new Date(zY, zM, 0).getDate();
+document.querySelector('.ck-date').textContent = zh({ weekday: 'long', day: 'numeric', month: 'long' }).format(today);
+document.querySelector('.ck-mname').textContent = zh({ month: 'long', year: 'numeric' }).format(today);
+(function tickTime() { document.querySelector('.ck-time').textContent = zh({ hour: '2-digit', minute: '2-digit' }).format(new Date()); setTimeout(tickTime, 15000); })();
+// Monatsring: ein Strich pro Tag – vergangene Tage grün (ein paar rot = offen), heute länger, Rest grau
+const openDays = [5, 12, 17];
+let nOk = 0, nOpen = 0;
+for (let d = 1; d <= daysInMonth; d++) {
+  const a = (-90 + (d - .5) * 360 / daysInMonth) * Math.PI / 180, isToday = d === zDay;
+  const r1 = isToday ? 50 : 57, r2 = isToday ? 72 : 69;
+  const cls = d > zDay ? 'f' : (d < zDay && openDays.includes(d)) ? 'r' : 'g';
+  if (d < zDay) cls === 'r' ? nOpen++ : nOk++;
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  l.setAttribute('x1', 80 + Math.cos(a) * r1); l.setAttribute('y1', 80 + Math.sin(a) * r1);
+  l.setAttribute('x2', 80 + Math.cos(a) * r2); l.setAttribute('y2', 80 + Math.sin(a) * r2);
+  l.setAttribute('class', cls); ckTicks.appendChild(l);
 }
+document.querySelector('.n-ok').textContent = nOk; document.querySelector('.n-open').textContent = nOpen;
+const tickLines = [...ckTicks.querySelectorAll('line:not(.f)')];
+function ckSet(pill, n) {
+  const total = +pill.dataset.total; pill.querySelector('em').textContent = `${n}/${total}`;
+  ckRingsEl.style.setProperty(pill.classList.contains('p-check') ? '--o1' : '--o2', 100 - 100 * n / total);
+}
+const ckY = y => ckScroll.style.setProperty('--y', y);
+const ckMax = () => Math.max(0, ckScroll.offsetHeight - ckScreen.clientHeight);
 const loops = [
   {
-    final() { ckRows.forEach(li => ckSet(li, +li.dataset.total)); },
+    final() { ckPills.forEach(p => ckSet(p, +p.dataset.total)); ckTicks.classList.remove('hide'); tickLines.forEach(l => l.style.opacity = ''); ckY(0); },
     async run(alive) {
       while (alive()) {
-        ckRows.forEach(li => ckSet(li, 0));
-        await sleep(900);
-        for (const li of ckRows) {
-          const total = +li.dataset.total;
-          for (let n = 1; n <= total; n++) { if (!alive()) return; ckSet(li, n); await sleep(total > 10 ? 70 : 420); }
-          await sleep(450);
+        ckY(0); ckPills.forEach(p => ckSet(p, 0));
+        tickLines.forEach(l => l.style.opacity = 0);
+        await sleep(1600); if (!alive()) return;
+        for (const p of ckPills) {
+          const total = +p.dataset.total;
+          for (let n = 1; n <= total; n++) { if (!alive()) return; ckSet(p, n); await sleep(total > 10 ? 80 : 380); }
+          await sleep(300);
         }
-        await sleep(3800);
+        await sleep(1200); if (!alive()) return;
+        ckY(ckMax()); await sleep(1300);
+        for (const l of tickLines) { if (!alive()) return; l.style.opacity = ''; await sleep(45); }
+        await sleep(2800); if (!alive()) return;
+        ckY(0); await sleep(1500);
       }
     }
   },

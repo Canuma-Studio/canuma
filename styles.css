@@ -92,37 +92,59 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 .visual { position: relative; background: var(--ink); border-radius: 20px; height: min(66svh, 560px); min-height: 440px; overflow: hidden; display: grid; place-items: center; }
 .visual::before { content: ""; position: absolute; inset: 0; background: radial-gradient(420px circle at var(--mx, -300px) var(--my, -300px), rgba(238,232,221,.1), transparent 60%); pointer-events: none; }
 
-/* ChefKlick: Handy im dunklen App-Design */
-.phone { height: min(520px, calc(100% - 56px)); aspect-ratio: 9 / 18.5; background: #0b0b0c; border-radius: 42px; padding: 9px; box-shadow: 0 0 0 1px #34343a, 0 40px 80px rgba(0,0,0,.45); }
-.ck { position: relative; height: 100%; border-radius: 34px; background: #151517; color: #F5F3EE; padding: 38px 14px 14px; overflow: hidden; font-size: 12px; }
-.ck::before { content: ""; position: absolute; top: 10px; left: 50%; width: 76px; height: 20px; margin-left: -38px; background: #0b0b0c; border-radius: 99px; }
-.ck-top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.ck-icon { width: 26px; height: 26px; flex: none; }
-.ck-word { font-family: "Montserrat", var(--sans); font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
-.ck-word b { color: #F5F3EE; } .ck-word i { font-style: normal; color: #C8A96B; }
-.ck-gear { margin-left: auto; width: 18px; height: 18px; fill: none; stroke: #8b8a86; stroke-width: 1.8; stroke-linecap: round; }
-.ck-hi { font-family: var(--mono); font-size: 10px; color: #8b8a86; margin: 0 0 10px; }
-.ck-card { background: #1e1e22; border: 1px solid #2b2b31; border-radius: 14px; }
-.ck-rings { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 6px 10px; margin-bottom: 10px; }
-.ck-ring { position: relative; display: grid; justify-items: center; gap: 4px; }
-.ck-ring svg { width: 64px; height: 64px; transform: rotate(-90deg); }
-.ck-ring circle { fill: none; stroke: #2f2f35; stroke-width: 4.5; }
-.ck-ring .fg { stroke: #C8A96B; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: var(--off, 100); transition: stroke-dashoffset .35s cubic-bezier(.2,.8,.2,1); }
-.ck-ring[data-ring="week"] .fg { stroke: #8fa6d6; }
-.ck-ring b { position: absolute; top: 22px; font: 11px var(--mono); font-variant-numeric: tabular-nums; }
-.ck-ring small { font-family: var(--mono); font-size: 9.5px; color: #8b8a86; }
-.ck-mods { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
-.ck-mods li { display: grid; grid-template-columns: 1fr auto 20px; gap: 10px; align-items: center; background: #1e1e22; border: 1px solid #2b2b31; border-radius: 12px; padding: 9px 10px; }
-.ck-mods li[data-week] { border-style: dashed; }
-.ck-mods li div { display: grid; line-height: 1.3; min-width: 0; }
-.ck-mods li div > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ck-mods small { font-size: 10px; color: #8b8a86; }
-.ck-mods .ct { white-space: nowrap; font: 10.5px var(--mono); color: #bdb9b0; font-variant-numeric: tabular-nums; }
-.ck-mods .ok { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #4a4a52; display: grid; place-items: center; transition: background .3s, border-color .3s; }
-.ck-mods .ok svg { width: 11px; height: 11px; fill: none; stroke: #151517; stroke-width: 2.6; stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .4s .1s; }
-.ck-mods li.done .ok { background: #5fb97c; border-color: #5fb97c; }
-.ck-mods li.done .ok svg { stroke-dashoffset: 0; }
-.ck-mods li.done small { color: #5fb97c; }
+/* ChefKlick: Handy im echten App-Design (hell), Beispieldaten */
+.phone { container-type: inline-size; height: min(560px, calc(100% - 44px)); aspect-ratio: 9 / 19.5; background: #0b0b0c; border-radius: 44px; padding: 9px; box-shadow: 0 0 0 1px #34343a, 0 40px 80px rgba(0,0,0,.45); }
+.ck { position: relative; height: 100%; border-radius: 36px; background: #F3F1EC; color: #1c1c1c; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--sans); font-size: calc((100cqw - 18px) / 30); line-height: 1.25; }
+.ck::before { content: ""; position: absolute; top: .9em; left: 50%; width: 8em; height: 2.3em; margin-left: -4em; background: #0b0b0c; border-radius: 99em; z-index: 3; }
+.ck svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ck-status { position: absolute; inset: 0 0 auto; height: 4em; background: linear-gradient(#F3F1EC 70%, rgba(243,241,236,0)); padding: 0 2.3em 0 2.8em; display: flex; justify-content: space-between; align-items: center; z-index: 2; }
+.ck-time { font-weight: 600; font-size: 1.15em; font-variant-numeric: tabular-nums; }
+.ck-sys { display: flex; gap: .45em; align-items: center; }
+.ck-sys svg { height: .95em; width: auto; fill: currentColor; stroke: none; }
+.ck-sys svg:nth-child(2) { fill: none; stroke: currentColor; stroke-width: 1.6; }
+.ck-fab { position: absolute; top: 4.4em; right: 1.3em; width: 3.6em; height: 3.6em; border-radius: 50%; background: #0a84ff; box-shadow: 0 0 0 .3em rgba(10,132,255,.3), 0 .5em 1.2em rgba(10,132,255,.35); display: grid; place-items: center; z-index: 2; }
+.ck-fab svg { width: 1.8em; height: 1.8em; fill: #fff; stroke: none; }
+.ck-scroll { position: absolute; inset: 0 0 auto; padding: 6.8em 1.85em 10em; transform: translateY(calc(var(--y, 0) * -1px)); transition: transform 1.5s cubic-bezier(.65,0,.25,1); will-change: transform; }
+.ck-word { text-align: center; font-family: "Montserrat", var(--sans); font-weight: 700; font-size: 3.85em; letter-spacing: -.015em; line-height: 1; margin: 0 0 .32em; }
+.ck-word b { color: #163A7C; } .ck-word i { font-style: normal; color: #1c1c1c; }
+.ck-card { background: #fff; border: 1px solid #dcd8d0; border-radius: 1.6em; margin-bottom: 1.6em; }
+.ck-hello { display: flex; align-items: center; justify-content: space-between; padding: 3em 1.6em 2.9em; }
+.ck-hello strong { display: block; font-size: 1.8em; font-weight: 700; letter-spacing: -.01em; }
+.ck-hello span { display: block; font-size: 1.25em; font-weight: 600; margin-top: .45em; }
+.ck-hello svg { width: 1.75em; height: 1.75em; color: #163A7C; flex: none; }
+.ck-today { padding: 1.6em 1.55em 2em; }
+.ck h5 { margin: 0; font-size: 1.45em; font-weight: 700; color: #163A7C; letter-spacing: -.01em; }
+.ck-rings { display: block; width: 11.2em; height: 11.2em; margin: 1.3em auto 1.3em; transform: rotate(-90deg); }
+.ck-rings circle { fill: none; }
+.ck-rings .t1 { stroke: #e5e8e5; stroke-width: 9.5; } .ck-rings .t2 { stroke: #e2ecf6; stroke-width: 9; }
+.ck-rings .r1, .ck-rings .r2 { stroke-dasharray: 100; transition: stroke-dashoffset .25s linear; }
+.ck-rings .r1 { stroke: #2f5d4b; stroke-width: 9.5; stroke-dashoffset: var(--o1, 100); }
+.ck-rings .r2 { stroke: #1f6db3; stroke-width: 9; stroke-dashoffset: var(--o2, 100); }
+.ck-pill { display: flex; align-items: center; gap: .9em; height: 2.6em; padding: 0 1.05em; border-radius: 99em; border: 1.5px solid transparent; margin-top: .35em; }
+.ck-pill svg { width: 1.25em; height: 1.25em; flex: none; }
+.ck-pill span { flex: 1; font-size: 1.25em; line-height: 1; }
+.ck-pill em { font-style: normal; line-height: 1; color: #5a5a5a; font-variant-numeric: tabular-nums; }
+.p-check { background: #e6ebe8; border-color: #2f5d4b; } .p-check svg { color: #2f5d4b; }
+.p-temp { background: #e2ecf7; border-color: #1f6db3; } .p-temp svg { color: #1f6db3; }
+.p-ware svg { color: #8a8a8a; }
+.ck-month { padding: 1.6em 1.55em 1.7em; }
+.ck-mhead { display: flex; justify-content: space-between; align-items: baseline; }
+.ck-mhead span { color: #163A7C; font-size: 1.2em; }
+.ck-ticks { display: block; width: 15em; height: 15em; margin: 1.8em auto 1.5em; }
+.ck-ticks line { stroke-linecap: round; stroke-width: 3.6; transition: opacity .3s; }
+.ck-ticks .g { stroke: #2e7d46; } .ck-ticks .r { stroke: #b83a3a; } .ck-ticks .f { stroke: #e7e3dc; }
+.ck-ticks.hide line:not(.f) { opacity: 0; }
+.ck-legend { display: flex; justify-content: center; gap: .6em; }
+.ck-legend span { display: inline-flex; align-items: center; gap: .5em; border: 1px solid #dcd8d0; border-radius: 99em; padding: .55em 1em; color: #333; }
+.ck-legend b { font-weight: 400; font-variant-numeric: tabular-nums; }
+.ck-legend i { width: .6em; height: .6em; border-radius: 50%; }
+.ck-legend .g { background: #2e7d46; } .ck-legend .r { background: #b83a3a; }
+.ck-logout { margin-top: 2.7em; height: 3.9em; display: grid; place-items: center; background: #e8e5df; border: 1px solid #d6d2ca; border-radius: 1.3em; }
+.ck-logout span { font-weight: 700; color: #555; font-size: 1.25em; }
+.ck-tabs { position: absolute; left: 1.1em; right: 1.1em; bottom: 2.6em; height: 5.2em; padding: .35em; background: #fff; border-radius: 99em; box-shadow: 0 .4em 1.6em rgba(0,0,0,.13); display: grid; grid-template-columns: repeat(4, 1fr); z-index: 2; }
+.ck-tabs span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2em; color: #8a8a8a; font-size: .92em; border-radius: 99em; }
+.ck-tabs svg { width: 1.75em; height: 1.75em; stroke-width: 1.6; }
+.ck-tabs .on { background: #e1e8f4; color: #163A7C; font-weight: 700; }
 
 /* Webseiten: Browserfenster – Skizze, Gestaltung, Handy */
 .browser { width: min(86%, 560px); height: min(72%, 400px); background: var(--beige); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: width .9s cubic-bezier(.7,0,.2,1); box-shadow: 0 30px 70px rgba(0,0,0,.35); }
@@ -193,11 +215,6 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
   .browser { width: 90%; }
   .phase { gap: 14px; font-size: 10px; }
   .vf { inset: 12px; }
-  .ck { padding: 36px 10px 10px; font-size: 11px; }
-  .ck-mods li { gap: 6px; padding: 8px; grid-template-columns: 1fr auto 18px; }
-  .ck-mods .ok { width: 18px; height: 18px; }
-  .ck-mods .ct { font-size: 9.5px; letter-spacing: -.02em; }
-  .ck-mods small { font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .panel.in .panel-text > *, .panel.in .visual { animation: none; }
