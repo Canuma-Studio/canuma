@@ -1,18 +1,56 @@
 <!DOCTYPE html>
 <html lang="de-CH">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Canuma Studio</title>
-  <meta name="description" content="Canuma Studio – Zürich">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canuma Studio</title>
+<meta name="description" content="Canuma Studio, Zürich – Apps, Webseiten und Fotografie. Entwickler von ChefKlick, der HACCP-App für Profiküchen.">
+<link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/texgyreadventor-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <h1>Canuma Studio</h1>
-    <p>Hier entsteht die neue Website.</p>
-    <p><a href="mailto:info@canuma.ch">info@canuma.ch</a></p>
+  <header>
+    <a href="#top" aria-label="Canuma Studio"><svg class="mini" viewBox="230 50 190 190" aria-hidden="true"><path d="M393.44 173.81 A73.74 73.74 0 1 1 393.44 116.19" fill="none" stroke="currentColor" stroke-width="22.525"/><circle cx="325.56" cy="145" r="25.5" fill="currentColor"/></svg></a>
+    <nav><a href="#studio">studio</a><a href="#projekte">projekte</a><a href="#kontakt">kontakt</a></nav>
+  </header>
+
+  <main id="top">
+    <div class="stage">
+      <div class="sticky">
+        <canvas aria-hidden="true"></canvas>
+        <svg class="logo" viewBox="40 45 571 340" role="img" aria-label="Canuma Studio"><path class="ring" pathLength="1" d="M393.44 173.81 A73.74 73.74 0 1 1 393.44 116.19" fill="none" stroke="currentColor" stroke-width="22.525"/><circle class="dot" cx="325.56" cy="145" r="25.5" fill="currentColor"/><g class="word" fill="currentColor"><path class="l" style="--i:0" d="M64.58 281.27C64.58 303.74 81.94 320.79 104.93 320.79C120.53 320.79 132.38 313.51 140.08 299.26H131.55C123.44 309.46 116.06 313.72 104.82 313.72C87.04 313.72 72.38 298.95 72.38 280.96C72.38 262.45 86.42 248.30 104.72 248.30C115.54 248.30 124.58 252.26 131.14 262.55H139.77C133.84 249.34 120.32 241.23 104.41 241.23C81.53 241.23 64.58 258.29 64.58 281.27Z"/><path class="l" style="--i:1" d="M156.10 319.44H164.21L175.44 293.54H211.22L222.34 319.44H230.77L197.70 242.58H189.06ZM178.35 286.58 193.43 251.32 208.20 286.58Z"/><path class="l" style="--i:2" d="M250.22 319.44H257.91V251.84L303.67 319.44H311.37V242.58H303.67V306.34L260.62 242.58H250.22Z"/><path class="l" style="--i:3" d="M337.58 290.53C337.58 311.43 348.18 320.79 363.68 320.79C379.28 320.79 389.89 311.43 389.89 290.53V242.58H382.19V290.53C382.19 306.23 375.64 313.72 363.78 313.72C351.72 313.72 345.27 306.23 345.27 290.53V242.58H337.58Z"/><path class="l" style="--i:4" d="M416.10 319.44H423.79V251.01L452.60 319.44H459.26L488.17 251.01V319.44H495.86V242.58H483.90L456.03 308.00L428.06 242.58H416.10Z"/><path class="l" style="--i:5" d="M515.31 319.44H523.42L534.66 293.54H570.43L581.56 319.44H589.98L556.91 242.58H548.28ZM537.57 286.58 552.65 251.32 567.42 286.58Z"/></g><g class="sub" fill="currentColor"><path class="s" style="--i:0" d="M60.65 361.14C60.86 365.09 63.56 367.67 67.50 367.67C71.29 367.67 74.11 364.91 74.11 361.17C74.11 359.25 73.31 357.53 71.92 356.49C71.03 355.84 70.11 355.42 67.85 354.74C65.87 354.15 65.19 353.88 64.62 353.38C64.00 352.85 63.59 351.84 63.59 350.83C63.59 348.64 65.19 347.01 67.38 347.01C69.60 347.01 71.29 348.55 71.29 350.92H73.58C73.58 347.36 71.03 344.99 67.44 344.99C63.91 344.99 61.36 347.48 61.36 350.89C61.36 352.40 61.93 353.85 62.90 354.77C63.76 355.60 64.45 355.93 67.00 356.70C70.76 357.85 71.89 358.89 71.89 361.29C71.89 363.81 70.05 365.65 67.56 365.65C65.10 365.65 63.32 364.08 62.99 361.14Z"/><path class="s" style="--i:1" d="M160.93 347.36H165.94V367.28H168.13V347.36H173.14V345.38H160.93Z"/><path class="s" style="--i:2" d="M261.57 359.04C261.57 365.00 264.59 367.67 269.01 367.67C273.45 367.67 276.48 365.00 276.48 359.04V345.38H274.28V359.04C274.28 363.52 272.42 365.65 269.04 365.65C265.60 365.65 263.76 363.52 263.76 359.04V345.38H261.57Z"/><path class="s" style="--i:3" d="M366.95 367.28H372.84C381.41 367.28 385.44 362.72 385.44 356.40C385.44 352.28 383.72 349.02 380.46 347.10C378.39 345.85 376.07 345.38 372.10 345.38H366.95ZM369.14 365.29V347.36H372.19C375.51 347.36 377.59 347.78 379.25 348.78C381.77 350.30 383.22 353.05 383.22 356.31C383.22 359.19 382.09 361.71 380.08 363.34C378.33 364.73 376.07 365.29 372.19 365.29Z"/><path class="s" style="--i:4" d="M474.96 367.28H477.15V345.38H474.96Z"/><path class="s" style="--i:5" d="M566.67 356.19C566.67 362.57 571.83 367.67 578.26 367.67C584.61 367.67 589.82 362.54 589.82 356.34C589.82 350.09 584.61 344.99 578.26 344.99C571.98 344.99 566.67 350.12 566.67 356.19ZM568.90 356.25C568.90 351.24 573.20 347.01 578.26 347.01C583.36 347.01 587.60 351.24 587.60 356.37C587.60 361.44 583.36 365.65 578.26 365.65C573.11 365.65 568.90 361.44 568.90 356.25Z"/></g></svg>
+        <div class="inside" id="studio">
+          <div>
+            <p class="label">// studio</p>
+            <h2>Aus einzelnen Teilen etwas Ganzes bauen.</h2>
+            <p>Canuma Studio entwickelt digitale Werkzeuge für die Gastronomie und gestaltet Auftritte für kleine Betriebe – aus der Küche heraus gedacht, nicht vom Schreibtisch.</p>
+          </div>
+        </div>
+        <div class="hud">
+          <span class="type" data-text="apps · webseiten · fotografie"></span>
+          <div class="scale" aria-hidden="true"></div>
+          <span class="right dist">∞</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="block" id="projekte">
+      <p class="label">// projekte</p>
+      <div class="cards">
+        <article class="card"><span class="nr">01 — app · bald</span><div><h3>ChefKlick</h3><p>Die HACCP-App für Profiküchen. Temperaturen, Reinigung, Wareneingang – dokumentiert in Sekunden.</p></div></article>
+        <article class="card"><span class="nr">02 — web</span><div><h3>Webseiten</h3><p>Schnelle, klare Seiten für Restaurants, Läden und Handwerk. Ohne Baukasten, ohne Abo.</p></div></article>
+        <article class="card"><span class="nr">03 — foto</span><div><h3>Fotografie</h3><p>Hotels, Gerichte, Produkte. Bilder, die zeigen, wie es wirklich ist.</p></div></article>
+      </div>
+    </section>
+
+    <section class="block" id="kontakt">
+      <p class="label">// kontakt</p>
+      <a class="mail" href="mailto:info@canuma.ch" data-scramble>info@canuma.ch</a>
+    </section>
   </main>
-  <script src="script.js"></script>
+  <footer><span>© Canuma Studio, Zürich</span><span><a href="#">Impressum</a> · <a href="#">Datenschutz</a></span></footer>
+
+<script src="script.js"></script>
 </body>
 </html>
