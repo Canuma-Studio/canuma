@@ -1,0 +1,20 @@
+/* Canuma Studio – Styles. Farben und Schriften kommen nach der Design-Wahl. */
+:root {
+  --schwarz: #111111;
+  --weiss: #ffffff;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: var(--schwarz);
+  background: var(--weiss);
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 16px;
+}

@@ -1,0 +1,25 @@
+{
+  // Speichert automatisch, sobald du das Fenster wechselst -> Live Server lädt sofort neu
+  "files.autoSave": "onFocusChange",
+
+  // Formatiert HTML/CSS beim Speichern sauber ein (eingebaut, keine Erweiterung nötig)
+  "editor.formatOnSave": true,
+
+  // Ändert man <div> um, ändert sich </div> automatisch mit
+  "editor.linkedEditing": true,
+
+  // Lange Zeilen umbrechen statt seitlich scrollen
+  "editor.wordWrap": "on",
+
+  // Zeigt den zugehörigen öffnenden/schliessenden Tag farbig an
+  "editor.guides.bracketPairs": true,
+
+  // Keine Warn-Kästchen um Zeichen wie – oder ö
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+
+  // Emmet: "div.card" + Tab erzeugt <div class="card"></div>
+  "emmet.triggerExpansionOnTab": true,
+
+  // Live Server: kein Info-Popup bei jedem Start
+  "liveServer.settings.donotShowInfoMsg": true
+}
