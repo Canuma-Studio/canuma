@@ -72,39 +72,104 @@
       </div>
     </div>
 
-    <!-- Projekte: man scrollt nach unten, die Karten fahren seitlich vorbei -->
-    <section class="reel" id="projekte">
-      <div class="reel-sticky">
-        <div class="reel-head">
-          <p class="label">// projekte</p><span class="count">01 / 03</span>
+    <!-- Projekte: drei Reiter statt Filmstreifen -->
+    <section class="work" id="projekte">
+      <div class="work-head">
+        <div><p class="label">// projekte</p><h2>Drei Dinge.<br>Ein Studio.</h2></div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Projekte">
+        <button role="tab" id="tab-app" aria-controls="p-app" aria-selected="true"><span>01</span>ChefKlick</button>
+        <button role="tab" id="tab-web" aria-controls="p-web" aria-selected="false" tabindex="-1"><span>02</span>Webseiten</button>
+        <button role="tab" id="tab-foto" aria-controls="p-foto" aria-selected="false" tabindex="-1"><span>03</span>Fotografie</button>
+        <i class="tab-ink" aria-hidden="true"></i>
+      </div>
+
+      <!-- 01 ChefKlick -->
+      <div class="panel in" role="tabpanel" id="p-app" aria-labelledby="tab-app">
+        <div class="panel-text">
+          <p class="kicker">app · bald verfügbar</p>
+          <h3>ChefKlick</h3>
+          <p>Die HACCP-App für Profiküchen. Temperaturen, Reinigung, Wareneingang – dokumentiert in Sekunden, direkt auf dem Handy.</p>
+          <ul class="facts"><li>Temperaturen</li><li>Putzliste</li><li>Wareneingang</li><li>Kalender</li></ul>
+          <!-- Sobald chefklick.ch online ist, diese Zeile ersetzen durch:
+               <a class="cta" href="https://chefklick.ch">zu chefklick.ch <span aria-hidden="true">↗</span></a> -->
+          <span class="cta soon">chefklick.ch <em>bald</em></span>
         </div>
-        <div class="track">
-          <div class="intro">
-            <h2>Drei Dinge.<br>Ein Studio.</h2>
+        <div class="visual" aria-hidden="true">
+          <div class="phone"><div class="screen ck">
+            <div class="ck-top">
+              <svg class="ck-icon" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#F4F2ED"/><path d="M73.1 47.3A26 26 0 1 1 54.7 28.9" fill="none" stroke="#163A7C" stroke-width="10" stroke-linecap="round"/><path d="M36 54l9 9 16-18" fill="none" stroke="#163A7C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="72" cy="29" r="7.5" fill="#A8823A"/></svg>
+              <span class="ck-word"><b>Chef</b><i>Klick</i></span>
+              <svg class="ck-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+            </div>
+            <p class="ck-hi">heute · <span class="ck-date"></span></p>
+            <div class="ck-card ck-rings">
+              <div class="ck-ring" data-ring="day"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/><circle class="fg" cx="20" cy="20" r="16" pathLength="100"/></svg><b>0%</b><small>täglich</small></div>
+              <div class="ck-ring" data-ring="week"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/><circle class="fg" cx="20" cy="20" r="16" pathLength="100"/></svg><b>0%</b><small>wöchentlich</small></div>
+            </div>
+            <ul class="ck-mods">
+              <li data-total="4" data-who="Anna"><div><span>Temperaturen</span><small>offen</small></div><span class="ct">0 / 4</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span></li>
+              <li data-total="23" data-who="Luca"><div><span>Putzliste</span><small>offen</small></div><span class="ct">0 / 23</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span></li>
+              <li data-total="2" data-who="Mira"><div><span>Wareneingang</span><small>offen</small></div><span class="ct">0 / 2</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span></li>
+              <li data-total="1" data-who="Luca" data-week><div><span>Grundreinigung</span><small>diese Woche</small></div><span class="ct">0 / 1</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span></li>
+            </ul>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- 02 Webseiten -->
+      <div class="panel" role="tabpanel" id="p-web" aria-labelledby="tab-web" hidden>
+        <div class="panel-text">
+          <p class="kicker">web · auf anfrage</p>
+          <h3>Webseiten</h3>
+          <p>Schnelle, klare Seiten für kleine Betriebe. Von der ersten Skizze bis zur fertigen Seite, die auf jedem Handy funktioniert. Ohne Baukasten, ohne Abo.</p>
+          <ul class="facts"><li>Skizze</li><li>Gestaltung</li><li>Handy-tauglich</li><li>Eigene Domain</li></ul>
+          <a class="cta" href="#kontakt">Projekt anfragen <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="visual" aria-hidden="true">
+          <div class="browser">
+            <div class="bar"><i></i><i></i><i></i><span>dein-betrieb.ch</span></div>
+            <div class="site">
+              <div class="s-nav"><b class="w" style="--d:0s">Dein Betrieb</b><span class="w" style="--d:.05s">Angebot · Über uns · Kontakt</span></div>
+              <div class="s-hero">
+                <div class="s-img wb" data-l="bild" style="--d:.1s"></div>
+                <div class="s-copy">
+                  <h4 class="w" style="--d:.2s">Schön, dass du da bist.</h4>
+                  <p class="w" style="--d:.28s">Hier steht in zwei Sätzen, was euch besonders macht.</p>
+                  <span class="s-btn w" style="--d:.36s">Öffnungszeiten</span>
+                </div>
+              </div>
+              <div class="s-row"><div class="wb" data-l="foto" style="--d:.42s"></div><div class="wb" data-l="foto" style="--d:.48s"></div><div class="wb" data-l="foto" style="--d:.54s"></div></div>
+            </div>
           </div>
-          <article class="card card-app">
-            <span class="nr">01 — app · bald</span>
-            <div class="demo" aria-hidden="true">
-              <div class="demo-head"><span>ChefKlick</span><span class="demo-day">Heute</span></div>
-              <ul class="demo-list"></ul>
+          <ol class="phase"><li>01 skizze</li><li>02 gestaltung</li><li>03 handy</li></ol>
+        </div>
+      </div>
+
+      <!-- 03 Fotografie -->
+      <div class="panel" role="tabpanel" id="p-foto" aria-labelledby="tab-foto" hidden>
+        <div class="panel-text">
+          <p class="kicker">foto · auf anfrage</p>
+          <h3>Fotografie</h3>
+          <p>Hotels, Gerichte, Produkte. Bilder, die zeigen, wie es wirklich ist – bearbeitet und bereit für Webseite, Karte und Social Media.</p>
+          <ul class="facts"><li>Hotels</li><li>Food</li><li>Produkte</li></ul>
+          <a class="cta" href="#kontakt">Shooting anfragen <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="visual" aria-hidden="true">
+          <div class="vf">
+            <!-- Eigene Fotos: <figure class="shot" data-exif="…"><img src="images/foto/01.webp" alt=""></figure> -->
+            <figure class="shot on" data-exif="Z fc · 16 mm · f/8 · 1/60 · ISO 200" data-af="38% 42%" style="--g:linear-gradient(165deg,#34424c 0%,#6f6a60 55%,#b39a7a 100%)"><figcaption>hotel · foto folgt</figcaption></figure>
+            <figure class="shot" data-exif="Z fc · 50 mm · f/2.8 · 1/125 · ISO 400" data-af="52% 56%" style="--g:radial-gradient(circle at 52% 56%,#efe4cf 0 17%,#c27a45 18% 24%,#e9dcc6 25% 33%,#2b2724 34%)"><figcaption>food · foto folgt</figcaption></figure>
+            <figure class="shot" data-exif="Z fc · 35 mm · f/4 · 1/100 · ISO 320" data-af="60% 48%" style="--g:linear-gradient(200deg,#ddd6c9 0%,#b8ae9d 60%,#8b8274 100%)"><figcaption>produkt · foto folgt</figcaption></figure>
+            <div class="vf-ui">
+              <i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+              <span class="af"></span>
+              <span class="vf-top">● AF-S</span>
+              <span class="vf-exif"></span>
             </div>
-            <div>
-              <h3>ChefKlick</h3>
-              <p>Die HACCP-App für Profiküchen. Temperaturen, Reinigung, Wareneingang – dokumentiert in Sekunden.</p>
-            </div>
-          </article>
-          <article class="card"><span class="nr">02 — web</span>
-            <div>
-              <h3>Webseiten</h3>
-              <p>Schnelle, klare Seiten für Restaurants, Läden und Handwerk. Ohne Baukasten, ohne Abo.</p>
-            </div>
-          </article>
-          <article class="card"><span class="nr">03 — foto</span>
-            <div>
-              <h3>Fotografie</h3>
-              <p>Hotels, Gerichte, Produkte. Bilder, die zeigen, wie es wirklich ist.</p>
-            </div>
-          </article>
+            <div class="vf-flash"></div>
+          </div>
         </div>
       </div>
     </section>

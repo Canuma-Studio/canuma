@@ -208,10 +208,6 @@ document.fonts.ready.then(buildShards);
 const t = document.querySelector('.type'), txt = t.dataset.text; let i = 0;
 setTimeout(function typ() { t.textContent = txt.slice(0, ++i); if (i < txt.length) setTimeout(typ, 55); }, reduce ? 0 : 800);
 
-// Karten: Licht folgt der Maus
-document.querySelectorAll('.card').forEach(c => c.addEventListener('pointermove', e => {
-  const b = c.getBoundingClientRect(); c.style.setProperty('--mx', e.clientX - b.left + 'px'); c.style.setProperty('--my', e.clientY - b.top + 'px');
-}));
 
 // Mail-Adresse würfelt sich zurecht
 const m = document.querySelector('[data-scramble]'), orig = m.textContent, chars = 'abcdefghijklmnopqrstuvwxyz@.';
@@ -223,47 +219,131 @@ m.addEventListener('pointerenter', () => {
   }, 30);
 });
 
-// ---------- Projekte: senkrecht scrollen, seitlich fahren ----------
-const reel = document.querySelector('.reel'), track = document.querySelector('.track'), count = document.querySelector('.count');
-const cardsEl = [...track.querySelectorAll('.card')];
-function sizeReel() { reel.style.height = (track.scrollWidth - innerWidth + innerHeight) + 'px'; }
-function moveReel() {
-  const r = reel.getBoundingClientRect(), total = reel.offsetHeight - innerHeight;
-  const q = Math.min(1, Math.max(0, -r.top / total));
-  track.style.transform = `translateX(${-(track.scrollWidth - innerWidth) * q}px)`;
-  // Welche Karte ist gerade am nächsten zur Mitte?
-  let best = 0, bd = 1e9;
-  cardsEl.forEach((c, i) => { const b = c.getBoundingClientRect(), d = Math.abs(b.left + b.width / 2 - innerWidth / 2); if (d < bd) { bd = d; best = i; } });
-  count.textContent = `0${best + 1} / 0${cardsEl.length}`;
-}
-sizeReel(); moveReel();
-addEventListener('scroll', () => requestAnimationFrame(moveReel), { passive: true });
-addEventListener('resize', () => { sizeReel(); moveReel(); });
-document.fonts.ready.then(() => { sizeReel(); moveReel(); });
+// ---------- Projekte: Reiter ----------
+const work = document.querySelector('.work');
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+const ink = document.querySelector('.tab-ink');
+const zh = (o) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let current = 0, workVisible = false;
 
-// ---------- ChefKlick-Vorschau: Einträge kommen herein und werden abgehakt ----------
-const list = document.querySelector('.demo-list');
-const entries = [['Kühlraum 1', 3.8, '°C'], ['Tiefkühler', -19.2, '°C'], ['Wareneingang Fisch', 1.9, '°C'], ['Kühlraum 2', 4.4, '°C'], ['Kerntemp. Poulet', 76.5, '°C'], ['Salatbar', 5.1, '°C']];
-const tmFmt = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' });
-let ei = 0, demoTimer = null;
-function addEntry() {
-  const [name, val, unit] = entries[ei++ % entries.length];
-  const li = document.createElement('li');
-  li.innerHTML = `<span class="tm">${tmFmt.format(new Date())}</span><span>${name}</span><span class="val">–</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span>`;
-  list.prepend(li);
-  while (list.children.length > 5) list.lastChild.remove();
-  const v = li.querySelector('.val'), t0 = performance.now();
-  (function count() {
-    const k = Math.min(1, (performance.now() - t0) / 700), e = 1 - Math.pow(1 - k, 3);
-    v.textContent = (val * e).toFixed(1).replace('-', '−') + ' ' + unit;
-    if (k < 1) requestAnimationFrame(count); else setTimeout(() => li.classList.add('done'), 150);
-  })();
+function moveInk() {
+  const t = tabs[current];
+  ink.style.width = t.offsetWidth + 'px';
+  ink.style.transform = `translateX(${t.offsetLeft}px)`;
 }
-for (let i = 0; i < 3; i++) { addEntry(); list.firstChild.classList.add('done'); }
-new IntersectionObserver(([e]) => {
-  clearInterval(demoTimer);
-  if (e.isIntersecting && !reduce) demoTimer = setInterval(addEntry, 2200);
-}).observe(document.querySelector('.card-app'));
+function selectTab(i, focus) {
+  current = (i + tabs.length) % tabs.length;
+  tabs.forEach((t, k) => {
+    const on = k === current, p = document.getElementById(t.getAttribute('aria-controls'));
+    t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
+    p.hidden = !on; p.classList.toggle('in', on);
+  });
+  if (focus) tabs[current].focus();
+  moveInk(); runLoops();
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => selectTab(i));
+  t.addEventListener('keydown', e => {
+    const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (k) { e.preventDefault(); selectTab(current + k, true); }
+    if (e.key === 'Home') { e.preventDefault(); selectTab(0, true); }
+    if (e.key === 'End') { e.preventDefault(); selectTab(tabs.length - 1, true); }
+  });
+});
+addEventListener('resize', moveInk);
+document.fonts.ready.then(moveInk); moveInk();
+
+// Licht folgt der Maus auf den dunklen Flächen
+document.querySelectorAll('.visual').forEach(c => c.addEventListener('pointermove', e => {
+  const b = c.getBoundingClientRect(); c.style.setProperty('--mx', e.clientX - b.left + 'px'); c.style.setProperty('--my', e.clientY - b.top + 'px');
+}));
+
+// Jede Vorschau läuft nur, wenn ihr Reiter offen und der Bereich sichtbar ist
+let runId = 0;
+function runLoops() {
+  const id = ++runId, alive = () => id === runId;
+  if (!workVisible || reduce) { loops.forEach(l => l.final()); return; }
+  loops[current].run(alive);
+}
+new IntersectionObserver(([e]) => { workVisible = e.isIntersecting; runLoops(); }, { threshold: .15 }).observe(work);
+
+// 01 ChefKlick: Aufgaben werden abgehakt, die Ringe füllen sich
+const ckRows = [...document.querySelectorAll('.ck-mods li')];
+const ckRings = { day: document.querySelector('[data-ring="day"]'), week: document.querySelector('[data-ring="week"]') };
+document.querySelector('.ck-date').textContent = zh({ weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date());
+const tm = zh({ hour: '2-digit', minute: '2-digit' });
+function ckSet(li, n) {
+  const total = +li.dataset.total; li.n = n;
+  li.querySelector('.ct').textContent = `${n} / ${total}`;
+  const done = n >= total; li.classList.toggle('done', done);
+  li.querySelector('small').textContent = done ? `${li.dataset.who} · ${tm.format(new Date())}` : (li.dataset.week !== undefined ? 'diese Woche' : 'offen');
+  const day = ckRows.filter(r => r.dataset.week === undefined), week = ckRows.filter(r => r.dataset.week !== undefined);
+  const pct = rows => Math.round(100 * rows.reduce((a, r) => a + (r.n || 0), 0) / rows.reduce((a, r) => a + +r.dataset.total, 0));
+  for (const [k, rows] of [['day', day], ['week', week]]) {
+    const v = pct(rows); ckRings[k].style.setProperty('--off', 100 - v); ckRings[k].querySelector('b').textContent = v + '%';
+  }
+}
+const loops = [
+  {
+    final() { ckRows.forEach(li => ckSet(li, +li.dataset.total)); },
+    async run(alive) {
+      while (alive()) {
+        ckRows.forEach(li => ckSet(li, 0));
+        await sleep(900);
+        for (const li of ckRows) {
+          const total = +li.dataset.total;
+          for (let n = 1; n <= total; n++) { if (!alive()) return; ckSet(li, n); await sleep(total > 10 ? 70 : 420); }
+          await sleep(450);
+        }
+        await sleep(3800);
+      }
+    }
+  },
+  // 02 Webseiten: Skizze -> Gestaltung -> Handy
+  (() => {
+    const br = document.querySelector('.browser'), ph = [...document.querySelectorAll('.phase li')];
+    const show = (styled, mobile, i) => { br.classList.toggle('styled', styled); br.classList.toggle('mobile', mobile); ph.forEach((l, k) => l.classList.toggle('on', k === i)); };
+    return {
+      final() { show(true, false, 1); },
+      async run(alive) {
+        while (alive()) {
+          show(false, false, 0); await sleep(1900); if (!alive()) return;
+          show(true, false, 1); await sleep(2800); if (!alive()) return;
+          show(true, true, 2); await sleep(3000); if (!alive()) return;
+          show(true, false, 1); await sleep(1400);
+        }
+      }
+    };
+  })(),
+  // 03 Fotografie: Sucher stellt scharf, löst aus, nächstes Bild
+  (() => {
+    const shots = [...document.querySelectorAll('.shot')], af = document.querySelector('.af');
+    const exif = document.querySelector('.vf-exif'), flash = document.querySelector('.vf-flash');
+    let i = 0;
+    const show = k => {
+      shots.forEach((s, j) => s.classList.toggle('on', j === k));
+      const [x, y] = (shots[k].dataset.af || '50% 50%').split(' ');
+      af.style.setProperty('--ax', x); af.style.setProperty('--ay', y);
+      exif.textContent = shots[k].dataset.exif || '';
+    };
+    return {
+      final() { show(0); },
+      async run(alive) {
+        show(i);
+        while (alive()) {
+          af.classList.remove('hunt'); void af.offsetWidth; af.classList.add('hunt');
+          await sleep(1100); if (!alive()) return;
+          flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+          await sleep(1500); if (!alive()) return;
+          i = (i + 1) % shots.length; show(i);
+          await sleep(700);
+        }
+      }
+    };
+  })()
+];
+loops.forEach(l => l.final());
 
 // ---------- Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen ----------
 const clock = document.querySelector('.clock');

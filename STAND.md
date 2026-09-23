@@ -11,6 +11,7 @@
 
 - 23.09.2026: Design gewählt (Entwurf F "Zerbrechen") und als Startseite übernommen, alte Entwürfe gelöscht
 - 24.09.2026: impressum.html + datenschutz.html (DSG, GitHub Pages + Hostpoint-Mail, keine Cookies), Footer-Links verknüpft
+- 24.09.2026: Privatadresse aus Impressum entfernt; Studio-Text branchenoffen; Projekte als Reiter statt Filmstreifen (ChefKlick-Handy im dunklen App-Design mit Montserrat Bold, Webseiten: Skizze → Gestaltung → Handy, Fotografie: Kamera-Sucher mit Platzhaltern)
 
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
@@ -20,8 +21,9 @@
 - Scroll: Kamera fliegt durch die Lücke zwischen Ring und Punkt ins Beige, dort der Studio-Text
 - Handy: Antippen lässt das Logo zerspringen (Klick auf Desktop ebenso)
 - Studio-Überschrift setzt sich beim Scrollen aus Scherben zusammen (drawShards in script.js)
-- Projekte: Filmstreifen – senkrecht scrollen, Karten fahren seitlich; Zähler 01 / 03
-- ChefKlick-Karte: Mini-App-Vorschau, Einträge kommen herein und werden abgehakt
+- Projekte: drei Reiter (Pfeiltasten gehen auch); Vorschauen laufen nur, wenn sichtbar
+- ChefKlick-Link: in index.html vorbereitet (Kommentar), sobald chefklick.ch online ist
+- Eigene Fotos: in index.html beim Kommentar "Eigene Fotos" als <img> in die .shot-Figuren
 - Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen
 - Texte sind noch Platzhalter
 
