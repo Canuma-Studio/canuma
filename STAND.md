@@ -17,6 +17,11 @@
 - Logo wird in script.js als Vektor auf ein Canvas gezeichnet: Maus drüber -> zerbricht in Stücke,
   die kurz schweben und zurückfedern (Tempo: "pull" und "damp" in script.js)
 - Scroll: Kamera fliegt durch die Lücke zwischen Ring und Punkt ins Beige, dort der Studio-Text
+- Handy: Antippen lässt das Logo zerspringen (Klick auf Desktop ebenso)
+- Studio-Überschrift setzt sich beim Scrollen aus Scherben zusammen (drawShards in script.js)
+- Projekte: Filmstreifen – senkrecht scrollen, Karten fahren seitlich; Zähler 01 / 03
+- ChefKlick-Karte: Mini-App-Vorschau, Einträge kommen herein und werden abgehakt
+- Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen
 - Texte sind noch Platzhalter
 
 ## Nächste Schritte

@@ -37,26 +37,54 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .scale i:nth-child(5n+1) { height: 14px; }
 .scale b { position: absolute; bottom: 0; width: 2px; height: 18px; background: var(--ink); }
 
-.inside { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; opacity: 0; pointer-events: none; }
+.inside { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; pointer-events: none; }
 .inside .label { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 0 0 20px; }
 .inside h2 { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 6vw, 76px); line-height: 1.05; margin: 0 auto; max-width: 14ch; }
 .inside p { color: var(--muted); max-width: 46ch; margin: 24px auto 0; font-size: clamp(16px, 1.8vw, 20px); }
-.inside h2, .inside p { transform: translateY(calc(var(--k, 0) * 30px)); filter: blur(calc(var(--k, 0) * 10px)); }
+/* Die Überschrift wird aus Scherben gebaut (script.js) und erst am Ende als echter Text eingeblendet */
+.inside h2 { opacity: 0; }
+.inside .label, .inside p { opacity: var(--a, 0); transform: translateY(calc((1 - var(--a, 0)) * 24px)); filter: blur(calc((1 - var(--a, 0)) * 8px)); }
 
 section.block { max-width: 1100px; margin: 0 auto; padding: clamp(64px, 12vw, 140px) clamp(16px, 4vw, 48px); }
-section.block + section.block { border-top: 1px solid var(--line); }
+#kontakt { border-top: 1px solid var(--line); }
 .label { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 0 0 24px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-.card { background: var(--ink); color: var(--beige); border-radius: 16px; padding: 28px; position: relative; overflow: hidden; min-height: 260px; display: flex; flex-direction: column; justify-content: space-between; }
+
+/* ---------- Projekte: Filmstreifen ---------- */
+.reel { position: relative; }                       /* Höhe setzt script.js */
+.reel-sticky { position: sticky; top: 0; height: 100svh; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: 28px; }
+.reel-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 clamp(16px, 4vw, 48px); }
+.reel-head .label { margin: 0; }
+.count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.track { display: flex; gap: 20px; padding: 0 clamp(16px, 4vw, 48px); width: max-content; will-change: transform; }
+.intro { flex: 0 0 min(460px, 78vw); display: flex; align-items: flex-end; padding-bottom: 8px; }
+.intro h2 { font-family: var(--display); font-weight: 400; font-size: clamp(40px, 6vw, 80px); line-height: 1.02; margin: 0; }
+.card { flex: 0 0 min(520px, 80vw); height: min(64svh, 540px); background: var(--ink); color: var(--beige); border-radius: 20px; padding: 28px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
 .card::before { content: ""; position: absolute; inset: 0; background: radial-gradient(360px circle at var(--mx, -200px) var(--my, -200px), rgba(238,232,221,.12), transparent 60%); pointer-events: none; }
 .card .nr { font-family: var(--mono); font-size: 12px; color: #a39d92; }
-.card h3 { font-family: var(--display); font-weight: 400; font-size: 30px; margin: 48px 0 8px; }
+.card h3 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 3.4vw, 44px); margin: 0 0 8px; }
+
+/* ChefKlick-Karte: kleine, lebendige App-Vorschau */
+.demo { background: #262626; border: 1px solid #3a3a3a; border-radius: 14px; padding: 14px 16px; margin: 20px 0; font-size: 13px; flex: 1; min-height: 0; overflow: hidden; }
+.demo-head { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: #a39d92; padding-bottom: 10px; border-bottom: 1px solid #3a3a3a; }
+.demo-list { list-style: none; margin: 0; padding: 0; }
+.demo-list li { display: grid; grid-template-columns: 44px 1fr auto 22px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; animation: slidein .5s cubic-bezier(.2,.8,.2,1); }
+.demo-list .tm { font-family: var(--mono); font-size: 11px; color: #8a847a; }
+.demo-list .val { white-space: nowrap; font-family: var(--mono); color: var(--beige); font-variant-numeric: tabular-nums; }
+.demo-list .ok { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #5e5a54; display: grid; place-items: center; transition: background .3s, border-color .3s; }
+.demo-list .ok svg { width: 11px; height: 11px; stroke: var(--ink); stroke-width: 3; fill: none; stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .4s .1s; }
+.demo-list li.done .ok { background: var(--beige); border-color: var(--beige); }
+.demo-list li.done .ok svg { stroke-dashoffset: 0; }
+@keyframes slidein { from { opacity: 0; transform: translateY(-12px); } }
+
 .card p { margin: 0; color: #c9c2b6; font-size: 15px; }
-.mail { font-family: var(--display); font-size: clamp(30px, 7vw, 88px); text-decoration: none; }
+.mail { font-family: var(--display); font-size: clamp(30px, 7vw, 88px); text-decoration: none; display: inline-block; transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.clock { font-variant-numeric: tabular-nums; }
 footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48px); display: flex; justify-content: space-between; border-top: 1px solid var(--line); }
 
 @media (max-width: 640px) {
   nav { gap: 14px; font-size: 11px; }
   .hud { grid-template-columns: 1fr auto; }
   .hud .type { display: none; }
+  .demo-list li { grid-template-columns: 1fr auto 20px; gap: 8px; }
+  .demo-list .tm { display: none; }
 }

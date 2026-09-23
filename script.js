@@ -28,6 +28,7 @@ function drawLogo(textAlpha) {
 
 let W, H, dpr, k0 = 1, ox = 0, oy = 0, cu = 10, cells = [], maxS = 40;
 let mouse = { x: -9999, y: -9999, px: -9999, py: -9999 };
+const bursts = [];   // Antippen/Klicken: lässt das Logo an dieser Stelle zerspringen
 const now = () => performance.now();
 
 // Welche Quadrate überhaupt Logo enthalten: einmal in ein kleines Hilfsbild zeichnen und nachschauen
@@ -59,6 +60,55 @@ const sx = u => ox + (F.x - VB.x) * k0 + (u - F.x) * k0 * s;
 const sy = u => oy + (F.y - VB.y) * k0 + (u - F.y) * k0 * s;
 function toUnits() { const k = k0 * s; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * (sx(0)), dpr * (sy(0))); }
 
+// ---------- Die Studio-Überschrift setzt sich aus Scherben zusammen ----------
+const h2 = inside.querySelector('h2');
+let shards = [], sheetT = null, gs = 8;
+function buildShards() {
+  const bb = box.getBoundingClientRect(), cs = getComputedStyle(h2);
+  gs = W < 640 ? 5 : 8;
+  sheetT = document.createElement('canvas'); sheetT.width = W * dpr; sheetT.height = H * dpr;
+  const g = sheetT.getContext('2d'); g.scale(dpr, dpr);
+  g.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; g.fillStyle = INK; g.textBaseline = 'alphabetic';
+  const asc = g.measureText('Hg').fontBoundingBoxAscent;
+  // Jeden Buchstaben genau dort ins Hilfsbild zeichnen, wo der Browser ihn setzt
+  const node = h2.firstChild, range = document.createRange();
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (let i = 0; i < node.length; i++) {
+    range.setStart(node, i); range.setEnd(node, i + 1);
+    const r = range.getClientRects()[0]; if (!r || !node.data[i].trim()) continue;
+    const x = r.left - bb.left, y = r.top - bb.top;
+    g.fillText(node.data[i], x, y + asc);
+    minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x + r.width); maxY = Math.max(maxY, y + r.height);
+  }
+  const data = g.getImageData(0, 0, sheetT.width, sheetT.height).data;
+  shards = [];
+  for (let y = Math.floor(minY); y < maxY; y += gs) for (let x = Math.floor(minX); x < maxX; x += gs) {
+    let hit = false;
+    for (let yy = y * dpr | 0; yy < (y + gs) * dpr && !hit; yy += 2) for (let xx = x * dpr | 0; xx < (x + gs) * dpr; xx += 2)
+      if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
+    if (!hit) continue;
+    const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
+    shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+  }
+}
+function drawShards(p) {
+  const a2 = Math.min(1, Math.max(0, (p - .6) / .26));   // 0 = Scherben weit verstreut, 1 = fertiges Wort
+  h2.style.opacity = a2 >= 1 ? 1 : 0;
+  if (a2 <= 0 || a2 >= 1 || !sheetT) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const q of shards) {
+    const t = Math.min(1, Math.max(0, (a2 - q.d) / (1 - q.d)));
+    if (!t) continue;
+    const e = 1 - Math.pow(1 - t, 3);
+    const x = q.sx + (q.x - q.sx) * e, y = q.sy + (q.y - q.sy) * e;
+    ctx.globalAlpha = Math.min(1, t * 4);
+    ctx.save(); ctx.translate(x + gs / 2, y + gs / 2); ctx.rotate(q.r * (1 - e));
+    ctx.drawImage(sheetT, q.x * dpr, q.y * dpr, gs * dpr, gs * dpr, -gs / 2, -gs / 2, gs, gs);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function resize() {
   dpr = Math.min(devicePixelRatio || 1, 2);
   W = box.clientWidth; H = box.clientHeight;
@@ -82,9 +132,18 @@ function tick() {
   const R = Math.max(55, Math.min(piece * 1.3, 150)) + speed;
   const T = now(), moving = [];
 
+  const hits = bursts.splice(0);
   for (const c of cells) {
     if (c.word && !textAlpha) continue;
     const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
+    for (const b of hits) {
+      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(90, Math.min(piece * 2, 220));
+      if (d < BR) {
+        const f = (BR - d) / BR;
+        c.vx += (ddx / d * 9 + (Math.random() - .5) * 4) * f; c.vy += (ddy / d * 9 + (Math.random() - .5) * 4) * f;
+        c.vr += (Math.random() - .5) * f * .4; c.t = T; c.loose = true;
+      }
+    }
     if (speed > .5) {
       const ddx = hx + c.dx - mouse.x, ddy = hy + c.dy - mouse.y, d2 = ddx * ddx + ddy * ddy;
       if (d2 < R * R) {
@@ -100,7 +159,10 @@ function tick() {
     const age = (T - c.t) / 1000;
     const pull = age < .3 ? 0 : Math.min(1, (age - .3) / .8) ** 2 * .04;
     c.vx += -c.dx * pull; c.vy += -c.dy * pull; c.vr += -c.r * pull;
-    const damp = age < .3 ? .93 : .88;
+    let damp = age < .3 ? .93 : .88;
+    // Beim Hineinfliegen sollen lose Stücke schnell zurück, sonst zoomen sie als riesige Platten mit
+    const hurry = Math.min(1, Math.max(0, (p - .15) / .15));
+    if (hurry) { c.vx += -c.dx * .2 * hurry; c.vy += -c.dy * .2 * hurry; c.vr += -c.r * .2 * hurry; damp = Math.min(damp, .7); }
     c.vx *= damp; c.vy *= damp; c.vr *= damp;
     c.dx += c.vx; c.dy += c.vy; c.r += c.vr;
     if (age > .5 && Math.abs(c.dx) < .2 && Math.abs(c.dy) < .2 && Math.abs(c.vx) < .05 && Math.abs(c.vy) < .05 && Math.abs(c.r) < .002) {
@@ -124,9 +186,9 @@ function tick() {
     ctx.restore();
   }
 
-  const a = Math.min(1, Math.max(0, (p - .7) / .15));
-  inside.style.opacity = a;
-  inside.style.setProperty('--k', 1 - a);
+  drawShards(p);
+  const a = Math.min(1, Math.max(0, (p - .82) / .12));
+  inside.style.setProperty('--a', a);
   inside.style.pointerEvents = a > .9 ? 'auto' : 'none';
   dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
   needle.style.left = (p * 100) + '%';
@@ -134,11 +196,13 @@ function tick() {
 }
 
 box.addEventListener('pointermove', e => { const b = canvas.getBoundingClientRect(); mouse.x = e.clientX - b.left; mouse.y = e.clientY - b.top; });
+box.addEventListener('pointerdown', e => { const b = canvas.getBoundingClientRect(); bursts.push({ x: e.clientX - b.left, y: e.clientY - b.top }); });
 box.addEventListener('pointerleave', () => { mouse.x = mouse.y = mouse.px = mouse.py = -9999; });
 // Beim Scrollen bewegt sich die Seite unter der Maus – das zählt nicht als Mausbewegung
 addEventListener('scroll', () => { mouse.px = mouse.x; mouse.py = mouse.y; }, { passive: true });
-addEventListener('resize', () => { clearTimeout(resize.t); resize.t = setTimeout(resize, 150); });
+addEventListener('resize', () => { clearTimeout(resize.t); resize.t = setTimeout(() => { resize(); buildShards(); }, 150); });
 resize(); tick();
+document.fonts.ready.then(buildShards);
 
 // Tipp-Effekt
 const t = document.querySelector('.type'), txt = t.dataset.text; let i = 0;
@@ -158,3 +222,59 @@ m.addEventListener('pointerenter', () => {
     if (++f > orig.length * 2) { clearInterval(m.t); m.textContent = orig; }
   }, 30);
 });
+
+// ---------- Projekte: senkrecht scrollen, seitlich fahren ----------
+const reel = document.querySelector('.reel'), track = document.querySelector('.track'), count = document.querySelector('.count');
+const cardsEl = [...track.querySelectorAll('.card')];
+function sizeReel() { reel.style.height = (track.scrollWidth - innerWidth + innerHeight) + 'px'; }
+function moveReel() {
+  const r = reel.getBoundingClientRect(), total = reel.offsetHeight - innerHeight;
+  const q = Math.min(1, Math.max(0, -r.top / total));
+  track.style.transform = `translateX(${-(track.scrollWidth - innerWidth) * q}px)`;
+  // Welche Karte ist gerade am nächsten zur Mitte?
+  let best = 0, bd = 1e9;
+  cardsEl.forEach((c, i) => { const b = c.getBoundingClientRect(), d = Math.abs(b.left + b.width / 2 - innerWidth / 2); if (d < bd) { bd = d; best = i; } });
+  count.textContent = `0${best + 1} / 0${cardsEl.length}`;
+}
+sizeReel(); moveReel();
+addEventListener('scroll', () => requestAnimationFrame(moveReel), { passive: true });
+addEventListener('resize', () => { sizeReel(); moveReel(); });
+document.fonts.ready.then(() => { sizeReel(); moveReel(); });
+
+// ---------- ChefKlick-Vorschau: Einträge kommen herein und werden abgehakt ----------
+const list = document.querySelector('.demo-list');
+const entries = [['Kühlraum 1', 3.8, '°C'], ['Tiefkühler', -19.2, '°C'], ['Wareneingang Fisch', 1.9, '°C'], ['Kühlraum 2', 4.4, '°C'], ['Kerntemp. Poulet', 76.5, '°C'], ['Salatbar', 5.1, '°C']];
+const tmFmt = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' });
+let ei = 0, demoTimer = null;
+function addEntry() {
+  const [name, val, unit] = entries[ei++ % entries.length];
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="tm">${tmFmt.format(new Date())}</span><span>${name}</span><span class="val">–</span><span class="ok"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.5L10 3.5"/></svg></span>`;
+  list.prepend(li);
+  while (list.children.length > 5) list.lastChild.remove();
+  const v = li.querySelector('.val'), t0 = performance.now();
+  (function count() {
+    const k = Math.min(1, (performance.now() - t0) / 700), e = 1 - Math.pow(1 - k, 3);
+    v.textContent = (val * e).toFixed(1).replace('-', '−') + ' ' + unit;
+    if (k < 1) requestAnimationFrame(count); else setTimeout(() => li.classList.add('done'), 150);
+  })();
+}
+for (let i = 0; i < 3; i++) { addEntry(); list.firstChild.classList.add('done'); }
+new IntersectionObserver(([e]) => {
+  clearInterval(demoTimer);
+  if (e.isIntersecting && !reduce) demoTimer = setInterval(addEntry, 2200);
+}).observe(document.querySelector('.card-app'));
+
+// ---------- Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen ----------
+const clock = document.querySelector('.clock');
+const clFmt = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+(function tickClock() { clock.textContent = clFmt.format(new Date()); setTimeout(tickClock, 1000 - Date.now() % 1000); })();
+const kontakt = document.querySelector('#kontakt');
+if (matchMedia('(pointer: fine)').matches && !reduce) {
+  kontakt.addEventListener('pointermove', e => {
+    const b = m.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    const dx = e.clientX - cx, dy = e.clientY - cy, d = Math.hypot(dx, dy), reach = Math.max(260, b.width * .7);
+    m.style.transform = d < reach ? `translate(${dx * .18}px, ${dy * .3}px)` : '';
+  });
+  kontakt.addEventListener('pointerleave', () => { m.style.transform = ''; });
+}
