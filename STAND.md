@@ -10,6 +10,7 @@
 - 23.09.2026: Projektordner angelegt, mit GitHub verknüpft, Platzhalter-Startseite
 
 - 23.09.2026: Design gewählt (Entwurf F "Zerbrechen") und als Startseite übernommen, alte Entwürfe gelöscht
+- 24.09.2026: impressum.html + datenschutz.html (DSG, GitHub Pages + Hostpoint-Mail, keine Cookies), Footer-Links verknüpft
 
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
@@ -26,5 +27,5 @@
 
 ## Nächste Schritte
 1. Texte schreiben (Studio, Projekte, Kontakt)
-2. Impressum + Datenschutz (impressum.html, datenschutz.html)
-4. GitHub Pages aktivieren, canuma.ch per DNS bei Hostpoint verbinden (Nameserver NICHT ändern, sonst geht die Mail nicht mehr)
+2. GitHub Pages aktivieren, canuma.ch per DNS bei Hostpoint verbinden (Nameserver NICHT ändern, sonst geht die Mail nicht mehr)
+3. Später: SPF/DKIM prüfen, falls Mails im Spam landen
