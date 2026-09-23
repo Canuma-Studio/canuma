@@ -12,6 +12,7 @@
 - 23.09.2026: Design gewählt (Entwurf F "Zerbrechen") und als Startseite übernommen, alte Entwürfe gelöscht
 - 24.09.2026: impressum.html + datenschutz.html (DSG, GitHub Pages + Hostpoint-Mail, keine Cookies), Footer-Links verknüpft
 - 24.09.2026: Privatadresse aus Impressum entfernt; Studio-Text branchenoffen; Projekte als Reiter statt Filmstreifen (ChefKlick-Handy im echten hellen App-Design mit Beispieldaten, scrollt zum Monatsring, Webseiten: Skizze → Gestaltung → Handy, Fotografie: Kamera-Sucher mit Platzhaltern)
+- 24.09.2026: ChefKlick-Handy frei auf Beige (ohne dunkle Fläche); Fotografie: eigener Teller (images/foto/teller.webp, freigestellt, Original in images/original/) auf Schwarz, Sucher stellt scharf, blitzt, Teller dreht sich langsam
 
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
@@ -23,7 +24,7 @@
 - Studio-Überschrift setzt sich beim Scrollen aus Scherben zusammen (drawShards in script.js)
 - Projekte: drei Reiter (Pfeiltasten gehen auch); Vorschauen laufen nur, wenn sichtbar
 - ChefKlick-Link: in index.html vorbereitet (Kommentar), sobald chefklick.ch online ist
-- Eigene Fotos: in index.html beim Kommentar "Eigene Fotos" als <img> in die .shot-Figuren
+- Foto-Reiter: Bild in images/foto/; beim Übertragen auf den Mac hängt sich ein C2PA-Block an – entfernen und md5 prüfen
 - Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen
 - Texte sind noch Platzhalter
 

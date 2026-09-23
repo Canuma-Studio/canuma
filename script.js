@@ -336,28 +336,25 @@ const loops = [
       }
     };
   })(),
-  // 03 Fotografie: Sucher stellt scharf, löst aus, nächstes Bild
+  // 03 Fotografie: Sucher sucht den Fokus, stellt scharf, löst aus – der Teller dreht sich langsam
   (() => {
-    const shots = [...document.querySelectorAll('.shot')], af = document.querySelector('.af');
-    const exif = document.querySelector('.vf-exif'), flash = document.querySelector('.vf-flash');
-    let i = 0;
-    const show = k => {
-      shots.forEach((s, j) => s.classList.toggle('on', j === k));
-      const [x, y] = (shots[k].dataset.af || '50% 50%').split(' ');
-      af.style.setProperty('--ax', x); af.style.setProperty('--ay', y);
-      exif.textContent = shots[k].dataset.exif || '';
-    };
+    const plate = document.querySelector('.plate'), af = document.querySelector('.af'), flash = document.querySelector('.vf-flash');
+    const spots = [['38%', '40%'], ['66%', '44%'], ['50%', '52%']];
+    let k = 0;
     return {
-      final() { show(0); },
+      final() { plate.classList.add('sharp'); af.classList.add('gone'); },
       async run(alive) {
-        show(i);
         while (alive()) {
-          af.classList.remove('hunt'); void af.offsetWidth; af.classList.add('hunt');
-          await sleep(1100); if (!alive()) return;
+          plate.classList.remove('sharp'); af.classList.remove('gone', 'hunt');
+          const [x, y] = spots[k++ % spots.length]; af.style.setProperty('--ax', x); af.style.setProperty('--ay', y);
+          await sleep(900); if (!alive()) return;
+          void af.offsetWidth; af.classList.add('hunt');
+          await sleep(650); if (!alive()) return;
+          plate.classList.add('sharp');
+          await sleep(500); if (!alive()) return;
           flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-          await sleep(1500); if (!alive()) return;
-          i = (i + 1) % shots.length; show(i);
-          await sleep(700);
+          await sleep(600); af.classList.add('gone');
+          await sleep(5200);
         }
       }
     };
