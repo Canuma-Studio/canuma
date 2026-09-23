@@ -102,8 +102,6 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 .ck-sys { display: flex; gap: .45em; align-items: center; }
 .ck-sys svg { height: .95em; width: auto; fill: currentColor; stroke: none; }
 .ck-sys svg:nth-child(2) { fill: none; stroke: currentColor; stroke-width: 1.6; }
-.ck-fab { position: absolute; top: 4.4em; right: 1.3em; width: 3.6em; height: 3.6em; border-radius: 50%; background: #0a84ff; box-shadow: 0 0 0 .3em rgba(10,132,255,.3), 0 .5em 1.2em rgba(10,132,255,.35); display: grid; place-items: center; z-index: 2; }
-.ck-fab svg { width: 1.8em; height: 1.8em; fill: #fff; stroke: none; }
 .ck-scroll { position: absolute; inset: 0 0 auto; padding: 6.8em 1.85em 10em; transform: translateY(calc(var(--y, 0) * -1px)); transition: transform 1.5s cubic-bezier(.65,0,.25,1); will-change: transform; }
 .ck-word { text-align: center; font-family: "Montserrat", var(--sans); font-weight: 700; font-size: 3.85em; letter-spacing: -.015em; line-height: 1; margin: 0 0 .32em; }
 .ck-word b { color: #163A7C; } .ck-word i { font-style: normal; color: #1c1c1c; }
