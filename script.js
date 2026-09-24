@@ -129,7 +129,8 @@ function tick() {
   // Maus: Geschwindigkeit bestimmt, wie viel zerbricht
   const mvx = mouse.x - mouse.px, mvy = mouse.y - mouse.py; mouse.px = mouse.x; mouse.py = mouse.y;
   const speed = Math.min(40, Math.hypot(mvx, mvy));
-  const R = Math.max(55, Math.min(piece * 1.3, 150)) + speed;
+  const R = Math.max(55, Math.min(piece * 1.3, 420)) + speed;
+  const kf = Math.min(4, Math.max(1, piece / 30));   // grosse Stücke (beim Hineinzoomen) brauchen mehr Schwung
   const T = now(), moving = [];
 
   const hits = bursts.splice(0);
@@ -137,10 +138,10 @@ function tick() {
     if (c.word && !textAlpha) continue;
     const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
     for (const b of hits) {
-      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(90, Math.min(piece * 2, 220));
+      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(90, Math.min(piece * 2, 520));
       if (d < BR) {
         const f = (BR - d) / BR;
-        c.vx += (ddx / d * 9 + (Math.random() - .5) * 4) * f; c.vy += (ddy / d * 9 + (Math.random() - .5) * 4) * f;
+        c.vx += (ddx / d * 9 + (Math.random() - .5) * 4) * f * kf; c.vy += (ddy / d * 9 + (Math.random() - .5) * 4) * f * kf;
         c.vr += (Math.random() - .5) * f * .4; c.t = T; c.loose = true;
       }
     }
@@ -148,8 +149,8 @@ function tick() {
       const ddx = hx + c.dx - mouse.x, ddy = hy + c.dy - mouse.y, d2 = ddx * ddx + ddy * ddy;
       if (d2 < R * R) {
         const d = Math.sqrt(d2) || 1, f = (R - d) / R;
-        c.vx += (ddx / d * 2.6 + mvx * .08 + (Math.random() - .5) * 2.4) * f;
-        c.vy += (ddy / d * 2.6 + mvy * .08 + (Math.random() - .5) * 2.4) * f;
+        c.vx += (ddx / d * 2.6 + mvx * .08 + (Math.random() - .5) * 2.4) * f * kf;
+        c.vy += (ddy / d * 2.6 + mvy * .08 + (Math.random() - .5) * 2.4) * f * kf;
         c.vr += (Math.random() - .5) * f * .2;
         c.t = T; c.loose = true;
       }
@@ -160,8 +161,8 @@ function tick() {
     const pull = age < .3 ? 0 : Math.min(1, (age - .3) / .8) ** 2 * .04;
     c.vx += -c.dx * pull; c.vy += -c.dy * pull; c.vr += -c.r * pull;
     let damp = age < .3 ? .93 : .88;
-    // Beim Hineinfliegen sollen lose Stücke schnell zurück, sonst zoomen sie als riesige Platten mit
-    const hurry = Math.min(1, Math.max(0, (p - .15) / .15));
+    // Erst ganz am Ende des Zooms (bevor die Studio-Überschrift kommt) alles schnell zurückholen
+    const hurry = Math.min(1, Math.max(0, (p - .62) / .1));
     if (hurry) { c.vx += -c.dx * .2 * hurry; c.vy += -c.dy * .2 * hurry; c.vr += -c.r * .2 * hurry; damp = Math.min(damp, .7); }
     c.vx *= damp; c.vy *= damp; c.vr *= damp;
     c.dx += c.vx; c.dy += c.vy; c.r += c.vr;
