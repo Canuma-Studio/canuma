@@ -59,12 +59,54 @@ function build() {
         if (data[(y * t.width + x) * 4 + 3] > 0) { hit = true; break; }
     if (hit) cells.push({ ux, uy, word: uy > 235, dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, t: 0, loose: false });
   }
-  // Handy: Reihenfolge beim Zerbröckeln – aussen zuerst, der Punkt ganz zuletzt (plus etwas Zufall)
-  const dist = c => Math.hypot(c.ux + cu / 2 - 325.56, c.uy + cu / 2 - 145);
-  const maxD = Math.max(...cells.map(dist));
+  // Handy: jedes Stück fliegt bei der Explosion von der Logo-Mitte weg nach aussen (mit etwas Streuung)
   for (const c of cells) {
-    c.cd = Math.min(1, Math.max(0, .8 * (1 - dist(c) / maxD) + .2 * Math.random()));
-    c.fx = Math.random() * 2 - 1; c.fy = Math.random(); c.fr = Math.random() * 2 - 1; c.cr = 0; c.jit = 0;
+    const ddx = c.ux + cu / 2 - 325.56, ddy = c.uy + cu / 2 - 215, a = Math.atan2(ddy, ddx) + (Math.random() - .5) * .7;
+    c.ex = Math.cos(a); c.ey = Math.sin(a);
+    c.cd = Math.random() * .12;                 // leicht versetzter Start, damit es nicht wie ein Block wirkt
+    c.fy = Math.random(); c.fr = Math.random() * 2 - 1; c.cr = 0; c.jit = 0;
+  }
+  buildCracks();
+}
+
+// ---------- Risse (Handy): je weiter man scrollt, desto mehr und längere Risse ----------
+let cracks = [];
+function buildCracks() {
+  cracks = [];
+  const add = (x, y, ang, len, a, w, depth) => {
+    const pts = [[x, y]], acc = [0]; let L = 0;
+    while (L < len) {
+      const st = 5 + Math.random() * 9;
+      ang += (Math.random() - .5) * .9;
+      x += Math.cos(ang) * st; y += Math.sin(ang) * st; L += st;
+      pts.push([x, y]); acc.push(L);
+      // ab und zu verzweigt sich ein Riss
+      if (depth < 2 && Math.random() < .09) add(x, y, ang + (Math.random() < .5 ? -1 : 1) * (.5 + Math.random() * .7), len * (.3 + Math.random() * .3), a + (L / len) * .45, w * .7, depth + 1);
+    }
+    cracks.push({ pts, acc, len: L, a, w });
+  };
+  // Einschlagpunkte: der Punkt in der Mitte, dann im Schriftzug
+  const origins = [[325.56, 145, 7], [300, 285, 3], [140, 280, 2], [500, 285, 2], [330, 355, 2]];
+  origins.forEach(([ox0, oy0, n], i) => {
+    for (let k = 0; k < n; k++) add(ox0, oy0, (k / n) * Math.PI * 2 + Math.random() * .8, 80 + Math.random() * 150, i * .1 + Math.random() * .15, 1.8, 0);
+  });
+}
+function drawCracks(g, q) {   // q: 0 = keine Risse, 1 = voll gerissen
+  if (q <= 0 || !cracks.length) return;
+  g.strokeStyle = '#eee8dd'; g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const c of cracks) {
+    const f = Math.min(1, Math.max(0, (q - c.a) / .45));
+    if (!f) continue;
+    const upto = f * c.len;
+    g.lineWidth = c.w * (.6 + q * .9) / k0;   // Pixelbreite → Logo-Einheiten
+    g.beginPath(); g.moveTo(c.pts[0][0], c.pts[0][1]);
+    for (let i = 1; i < c.pts.length; i++) {
+      if (c.acc[i] <= upto) { g.lineTo(c.pts[i][0], c.pts[i][1]); continue; }
+      const t = (upto - c.acc[i - 1]) / (c.acc[i] - c.acc[i - 1]);
+      g.lineTo(c.pts[i - 1][0] + (c.pts[i][0] - c.pts[i - 1][0]) * t, c.pts[i - 1][1] + (c.pts[i][1] - c.pts[i - 1][1]) * t);
+      break;
+    }
+    g.stroke();
   }
 }
 // Umrechnung Logo-Einheiten → Bildschirm, mit aktuellem Zoom s um den Zielpunkt F
@@ -107,8 +149,7 @@ function buildShards() {
       if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
     if (!hit) continue;
     const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
-    if (touchDev) shards.push({ x, y, sx: x + (Math.random() - .5) * W * .6, sy: H + gs + Math.random() * H * .35, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
-    else shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
   }
 }
 function drawShards(p) {
@@ -136,7 +177,7 @@ function resize() {
   dpr = Math.min(devicePixelRatio || 1, 2);   // Handy jetzt auch 2× – schärfere Kanten
   W = box.clientWidth; H = box.clientHeight;
   canvas.width = off.width = W * dpr; canvas.height = off.height = H * dpr;
-  s = 1; build(); lastP = -1;
+  s = 1; build(); lastP = -1; off.key = '';
 }
 
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -162,7 +203,10 @@ function tickInner() {
   const z = ease(Math.min(1, p / .72));
   s = crumb ? 1 : 1 + (maxS - 1) * z * z * z;
   const textAlpha = crumb ? 1 : Math.max(0, 1 - p * 6);
-  const pc = crumb ? Math.min(1, p / .58) : 0;   // 0 = Logo ganz, 1 = alles weggebröckelt
+  // Handy-Ablauf: erst Risse (bis p .34), kurz zittern, dann Explosion nach aussen (p .36–.56)
+  const cq = crumb ? Math.min(1, p / .34) : 0;                        // Risse
+  const pe = crumb ? Math.min(1, Math.max(0, (p - .36) / .2)) : 0;    // Explosion
+  const shake = crumb && p > .28 && !pe ? (p - .28) / .08 : 0;
   const piece = cu * k0 * s;                   // Stückgrösse auf dem Bildschirm
 
   // Maus: Geschwindigkeit bestimmt, wie viel zerbricht
@@ -174,7 +218,7 @@ function tickInner() {
   lastP = p;
   const T = now(), moving = [];
 
-  if (crumb && pc >= 1) {   // Logo ist komplett weggebröckelt: nur noch die Überschrift
+  if (crumb && pe >= 1) {   // Logo ist komplett weggeflogen: nur noch die Überschrift
     lastMoving = 0; bursts.length = 0;
     for (const c of cells) { c.dx = c.dy = c.vx = c.vy = c.r = c.vr = 0; c.loose = false; }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -188,10 +232,9 @@ function tickInner() {
     if (c.word && !textAlpha) continue;
     const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
     if (crumb) {
-      // Wie weit ist dieses Stück schon abgebröckelt? Kurz davor zittert es etwas
-      const st = c.cd * .7;
-      c.cr = Math.min(1, Math.max(0, (pc - st) / .3));
-      c.jit = !c.cr && pc > 0 && pc > st - .06 ? Math.sin(pc * 900 + c.ux * .7) * 1.4 * (1 - (st - pc) / .06) : 0;
+      // Wie weit ist dieses Stück schon weggeflogen? Kurz davor zittert das ganze Logo
+      c.cr = pe ? Math.min(1, Math.max(0, (pe - c.cd) / (1 - c.cd))) : 0;
+      c.jit = 0;   // gezittert wird als Ganzes (siehe unten), sonst entstehen Nähte zwischen den Stücken
     }
     if (!c.cr) for (const b of hits) {
       const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(W < 640 ? 70 : 90, Math.min(piece * 2, 520));
@@ -234,15 +277,21 @@ function tickInner() {
     // Nichts fliegt herum: Logo direkt zeichnen, ohne Umweg über das Hilfsbild (halbiert die Arbeit beim Scrollen)
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     { const k = k0 * s; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
-    drawLogo(textAlpha, ctx);
+    if (shake) { const k = k0 * s, jx = Math.sin(p * 2600) * 2.2 * shake, jy = Math.cos(p * 3100) * 1.2 * shake; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * (sx(0) + jx), dpr * (sy(0) + jy)); }
+    drawLogo(textAlpha, ctx); drawCracks(ctx, cq);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawShards(p);
     ui(p);
     requestAnimationFrame(tick); return;
   }
-  octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
-  { const k = k0 * s; octx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
-  drawLogo(textAlpha, octx);
+  // Hilfsbild nur neu zeichnen, wenn sich Zoom, Schrift oder Risse geändert haben (bei der Explosion bleibt es gleich)
+  const offKey = s + '|' + textAlpha + '|' + cq + '|' + W + '|' + H;
+  if (offKey !== off.key) {
+    off.key = offKey;
+    octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
+    { const k = k0 * s; octx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
+    drawLogo(textAlpha, octx); drawCracks(octx, cq);
+  }
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(off, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -252,11 +301,11 @@ function tickInner() {
     let ex = c.dx + c.jit, ey = c.dy, rot = c.r, al = 1;
     if (c.cr) {
       const t = c.cr; if (t >= 1) continue;
-      // löst sich, hüpft minim hoch und fällt dann immer schneller nach unten weg
-      ex += c.fx * t * 50;
-      ey += t * t * H * (.55 + c.fy * .45) - Math.sin(t * Math.PI) * 14;
-      rot += c.fr * t * 5;
-      al = t < .5 ? 1 : 1 - (t - .5) / .5;
+      // platzt schnell nach aussen weg und wird dabei langsamer (wie eine Explosion)
+      const e = 1 - Math.pow(1 - t, 2.4), far = Math.max(W, H) * (.55 + c.fy * .6);
+      ex += c.ex * e * far; ey += c.ey * e * far;
+      rot += c.fr * e * 7;
+      al = t < .6 ? 1 : 1 - (t - .6) / .4;
     }
     const x0 = sx(c.ux), y0 = sy(c.uy), hx = x0 + piece / 2 + ex, hy = y0 + piece / 2 + ey;
     if (hx < -piece || hy < -piece || hx > W + piece || hy > H + piece) continue;
