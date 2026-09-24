@@ -1,5 +1,7 @@
 // Canuma Studio – Script
 const INK = '#1c1c1c';
+const EDGE = '#b39462';   // Farbe der Bruchkanten: gedämpftes Gold (Kintsugi) – hier ändern, um den Ton anzupassen
+const EDGE_A = .55;        // wie stark die Kanten sichtbar sind (0 = gar nicht, 1 = voll)
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Touch-Geräte (Handy/Tablet): Logo zerbröckelt beim Scrollen, statt dass die Kamera hineinzoomt
 const touchDev = matchMedia('(pointer: coarse)').matches;
@@ -24,7 +26,7 @@ const VB = { x: 40, y: 45, w: 571, h: 340 };
 const F = { x: 281.56, y: 145 };   // Zielpunkt: in der Lücke zwischen Ring und Punkt
 
 function drawLogo(textAlpha, g = ctx) {
-  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 22.525;
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 22.525; g.lineCap = 'butt';
   g.stroke(RING); g.fill(DOT);
   if (textAlpha > 0) { g.globalAlpha = textAlpha; for (const l of LETTERS) g.fill(l, 'evenodd'); g.globalAlpha = 1; }
 }
@@ -109,10 +111,33 @@ function build() {
     const key = best * 2 + (cy > 232 ? 1 : 0);
     if (!cmap.has(key)) { const c = body({ cx: 0, cy: 0, sh: [] }); cmap.set(key, c); clusters.push(c); }
     const cl = cmap.get(key);
-    const sh = body({ path, cx, cy, cl, word: cy > 232, free: false, bb: [minx, miny, maxx, maxy],
+    const sh = body({ path, poly, si: j * nx + i, cx, cy, cl, word: cy > 232, free: false, bb: [minx, miny, maxx, maxy], scar: 0,
       fx: Math.random() * 2 - 1, fy: Math.random(), fr: Math.random() * 2 - 1, cd: 0, cr: 0, jit: 0 });
     cl.sh.push(sh); shardsL.push(sh);
   }
+  // Kintsugi: Gold nur auf den Kanten ZWISCHEN den Brocken, nicht auf jeder kleinen Scherbe
+  const bySeed = new Map(shardsL.map(sh => [sh.si, sh]));
+  const nearest = (x, y) => {
+    const i = Math.floor((x - x0) / fu), j = Math.floor((y - y0) / fu); let best = -1, bd = 1e18;
+    for (let jj = j - 2; jj <= j + 2; jj++) for (let ii = i - 2; ii <= i + 2; ii++) {
+      if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const k = jj * nx + ii, d = (seed[k][0] - x) ** 2 + (seed[k][1] - y) ** 2; if (d < bd) { bd = d; best = k; }
+    }
+    return best;
+  };
+  for (const sh of shardsL) {
+    sh.gpath = new Path2D();
+    const P = sh.poly;
+    for (let k = 0; k < P.length; k++) {
+      const a = P[k], b = P[(k + 1) % P.length], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      const ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1, e = fu * .08;
+      let nb = nearest(mx + ey / L * e, my - ex / L * e);
+      if (nb === sh.si) nb = nearest(mx - ey / L * e, my + ex / L * e);
+      const other = bySeed.get(nb);
+      if (other && other.cl !== sh.cl) { sh.gpath.moveTo(a[0], a[1]); sh.gpath.lineTo(b[0], b[1]); }
+    }
+  }
+  scarPath = null;
   for (const c of clusters) { c.cx = c.sh.reduce((a, b) => a + b.cx, 0) / c.sh.length; c.cy = c.sh.reduce((a, b) => a + b.cy, 0) / c.sh.length; c.m = Math.sqrt(c.sh.length); }
   // Handy: Reihenfolge beim Zerbröckeln – aussen zuerst, der Punkt ganz zuletzt (plus etwas Zufall)
   const dist = c => Math.hypot(c.cx - 325.56, c.cy - 145);
@@ -123,7 +148,7 @@ function build() {
 }
 // Jede Scherbe einmal als kleines fertiges Bild vorbereiten (in einem Sammelbild) –
 // danach muss beim Fliegen nur noch verschoben werden statt ausgeschnitten: viel schneller
-const atlas = document.createElement('canvas'), mask = document.createElement('canvas');   // mask: harte Schablone zum Ausstanzen
+const atlas = document.createElement('canvas'), mask = document.createElement('canvas'), atlasB = document.createElement('canvas');   // mask: harte Schablone zum Ausstanzen · atlasB: Scherben mit blauer Bruchkante
 function buildAtlas() {
   const BX = ox - VB.x * k0, BY = oy - VB.y * k0;   // Logo-Ursprung auf dem Bildschirm bei Zoom 1
   const lg = document.createElement('canvas'); lg.width = W * dpr; lg.height = H * dpr;
@@ -151,9 +176,18 @@ function buildAtlas() {
     mg.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * (q.ax - q.sx0 + BX), dpr * (q.ay - q.sy0 + BY));
     mg.fill(sh.path); mg.stroke(sh.path);
   }
+  // Fliegende Scherben: gleiche Bilder, aber mit blauer Bruchkante – nur auf dem Logo, nicht daneben
+  atlasB.width = atlas.width; atlasB.height = atlas.height;
+  const bg = atlasB.getContext('2d'); bg.drawImage(atlas, 0, 0);
+  bg.globalCompositeOperation = 'source-atop'; bg.strokeStyle = EDGE; bg.globalAlpha = EDGE_A; bg.lineWidth = 1.5 / k0; bg.lineJoin = 'round';
+  for (const sh of shardsL) {
+    const q = sh.sp;
+    bg.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * (q.ax - q.sx0 + BX), dpr * (q.ay - q.sy0 + BY));
+    bg.stroke(sh.gpath);
+  }
 }
 function body(o) { return Object.assign(o, { dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, tl: 0, vt: 0, t: 0, loose: false }); }
-let pattern = null;
+let pattern = null, scarPath = null;
 
 // Umrechnung Logo-Einheiten → Bildschirm, mit aktuellem Zoom s um den Zielpunkt F
 let s = 1;
@@ -188,34 +222,89 @@ function buildShards() {
     minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x + r.width); maxY = Math.max(maxY, y + r.height);
   }
   const data = g.getImageData(0, 0, sheetT.width, sheetT.height).data;
-  shards = [];
-  for (let y = Math.floor(minY); y < maxY; y += gs) for (let x = Math.floor(minX); x < maxX; x += gs) {
-    let hit = false;
-    for (let yy = (y - by0) * dpr | 0; yy < (y - by0 + gs) * dpr && !hit; yy += 2) for (let xx = (x - bx0) * dpr | 0; xx < (x - bx0 + gs) * dpr; xx += 2)
-      if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
-    if (!hit) continue;
+  const ink = (x, y) => { const xx = (x - bx0) * dpr | 0, yy = (y - by0) * dpr | 0; return xx >= 0 && yy >= 0 && xx < sheetT.width && yy < sheetT.height && data[(yy * sheetT.width + xx) * 4 + 3] > 30; };
+  // Dieselben Glasscherben wie beim Logo (Voronoi), hier in Bildschirm-Pixeln
+  const size = W < 640 ? 13 : 15;
+  shards = voronoi(minX - size, minY - size, maxX - minX + 2 * size, maxY - minY + 2 * size, size, ink);
+  for (const q of shards) {
     const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
-    if (touchDev) shards.push({ x, y, sx: x + (Math.random() - .5) * W * .6, sy: H + gs + Math.random() * H * .35, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
-    else shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    if (touchDev) { q.sx = q.cx + (Math.random() - .5) * W * .6; q.sy = H + size + Math.random() * H * .35; }
+    else { q.sx = q.cx + Math.cos(ang) * far; q.sy = q.cy + Math.sin(ang) * far; }
+    q.r = (Math.random() - .5) * 8; q.d = Math.random() * .55;
   }
+  // Scherbenbilder (mit schlichter Goldkante) in ein Sammelbild
+  const AW = 1024 / dpr; let x = 0, y = 0, rowH = 0;
+  for (const q of shards) {
+    const w = q.bb[2] - q.bb[0] + 4, h = q.bb[3] - q.bb[1] + 4;
+    if (x + w > AW) { x = 0; y += rowH + 1; rowH = 0; }
+    q.sp = { ax: x, ay: y, w, h, sx0: q.bb[0] - 2, sy0: q.bb[1] - 2 }; x += w + 1; rowH = Math.max(rowH, h);
+  }
+  atlasH.width = Math.ceil(AW * dpr); atlasH.height = Math.ceil((y + rowH + 2) * dpr);
+  const hg = atlasH.getContext('2d'), pat = hg.createPattern(sheetT, 'no-repeat');
+  pat.setTransform(new DOMMatrix([1 / dpr, 0, 0, 1 / dpr, bx0, by0]));
+  hg.lineJoin = 'round';
+  for (const q of shards) {
+    const sp = q.sp;
+    hg.setTransform(dpr, 0, 0, dpr, dpr * (sp.ax - sp.sx0), dpr * (sp.ay - sp.sy0));
+    hg.globalCompositeOperation = 'source-over'; hg.globalAlpha = 1; hg.fillStyle = hg.strokeStyle = pat; hg.lineWidth = 1;
+    hg.fill(q.path); hg.stroke(q.path);
+    hg.globalCompositeOperation = 'source-atop'; hg.globalAlpha = EDGE_A; hg.strokeStyle = EDGE; hg.lineWidth = 1.5;
+    hg.stroke(q.path);
+  }
+}
+const atlasH = document.createElement('canvas');
+// Voronoi-Scherben in einem Rechteck; ink(x, y) sagt, ob an der Stelle etwas ist
+function voronoi(x0, y0, bw, bh, size, ink) {
+  const nx = Math.ceil(bw / size), ny = Math.ceil(bh / size), seed = [], out = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) seed.push([x0 + (i + .12 + Math.random() * .76) * size, y0 + (j + .12 + Math.random() * .76) * size]);
+  const clip = (poly, px, py, vx, vy) => {
+    const o = [];
+    for (let k = 0; k < poly.length; k++) {
+      const a = poly[k], b = poly[(k + 1) % poly.length];
+      const da = (a[0] - px) * vx + (a[1] - py) * vy, db = (b[0] - px) * vx + (b[1] - py) * vy;
+      if (da <= 0) o.push(a);
+      if ((da <= 0) !== (db <= 0)) { const t = da / (da - db); o.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+    }
+    return o;
+  };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const [px, py] = seed[j * nx + i], h = size * 2.2;
+    let poly = [[px - h, py - h], [px + h, py - h], [px + h, py + h], [px - h, py + h]];
+    for (let jj = j - 2; jj <= j + 2; jj++) for (let ii = i - 2; ii <= i + 2; ii++) {
+      if ((ii === i && jj === j) || ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const [qx, qy] = seed[jj * nx + ii];
+      poly = clip(poly, (px + qx) / 2, (py + qy) / 2, qx - px, qy - py);
+      if (poly.length < 3) break;
+    }
+    if (poly.length < 3) continue;
+    let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9, cx = 0, cy = 0;
+    for (const [x, y] of poly) { minx = Math.min(minx, x); miny = Math.min(miny, y); maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); cx += x; cy += y; }
+    cx /= poly.length; cy /= poly.length;
+    const inside = (x, y) => { let c = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return c; };
+    let hit = false;
+    for (let y = miny; y <= maxy && !hit; y += 1.5) for (let x = minx; x <= maxx; x += 1.5) if (ink(x, y) && inside(x, y)) { hit = true; break; }
+    if (!hit) continue;
+    const path = new Path2D(); path.moveTo(poly[0][0], poly[0][1]); for (let k = 1; k < poly.length; k++) path.lineTo(poly[k][0], poly[k][1]); path.closePath();
+    out.push({ path, cx, cy, bb: [minx, miny, maxx, maxy] });
+  }
+  return out;
 }
 function drawShards(p) {
   const a2 = Math.min(1, Math.max(0, (p - .6) / .26));   // 0 = Scherben weit verstreut, 1 = fertiges Wort
   h2.style.opacity = a2 >= 1 ? 1 : 0;
   if (a2 <= 0 || a2 >= 1 || !sheetT) return;
-  const gd = gs * dpr, sox = sheetT.ox, soy = sheetT.oy;
   let ga = 1;
   for (const q of shards) {
     const t = Math.min(1, Math.max(0, (a2 - q.d) / (1 - q.d)));
     if (!t) continue;
     const e = 1 - Math.pow(1 - t, 3);
-    const x = q.sx + (q.x - q.sx) * e + gs / 2, y = q.sy + (q.y - q.sy) * e + gs / 2;
-    if (x < -gs || y < -gs || x > W + gs || y > H + gs) continue;   // ausserhalb des Bildschirms: nicht zeichnen
+    const x = q.sx + (q.cx - q.sx) * e, y = q.sy + (q.cy - q.sy) * e;
+    if (x < -30 || y < -30 || x > W + 30 || y > H + 30) continue;   // ausserhalb des Bildschirms: nicht zeichnen
     const al = Math.min(1, t * 4); if (al !== ga) ctx.globalAlpha = ga = al;
-    // Drehung direkt setzen statt save/restore – spart auf dem Handy viel Zeit
-    const rot = q.r * (1 - e), c = Math.cos(rot) * dpr, sn = Math.sin(rot) * dpr;
-    ctx.setTransform(c, sn, -sn, c, x * dpr, y * dpr);
-    ctx.drawImage(sheetT, (q.x - sox) * dpr, (q.y - soy) * dpr, gd, gd, -gs / 2, -gs / 2, gs, gs);
+    // um die Scherbenmitte gedreht an die aktuelle Stelle
+    const rot = q.r * (1 - e), co = Math.cos(rot), si = Math.sin(rot), sp = q.sp;
+    ctx.setTransform(dpr * co, dpr * si, -dpr * si, dpr * co, dpr * (x - co * q.cx + si * q.cy), dpr * (y - si * q.cx - co * q.cy));
+    ctx.drawImage(atlasH, sp.ax * dpr, sp.ay * dpr, sp.w * dpr, sp.h * dpr, sp.sx0, sp.sy0, sp.w, sp.h);
   }
   ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
@@ -323,7 +412,7 @@ function tickInner() {
     if (sh.word && !textAlpha) continue;
     if ((sh.free ? sh.loose : sh.cl.loose) || sh.cr || sh.jit) moving.push(sh);
   }
-  const now2 = T; seams = seams.filter(m => now2 - m.T < 750);
+  const now2 = T; seams = seams.filter(m => now2 - m.T < 900);
 
   lastMoving = moving.length + seams.length;
   if (!moving.length) {
@@ -422,6 +511,10 @@ function tickInner() {
       ctx.globalAlpha = e.al * (1 - .38 * Math.abs(Math.sin(e.tl)));
       setM(e, K, BX, BY, 0, 0);
       ctx.fill(e.sh.path); ctx.stroke(e.sh.path);
+      // blaue Bruchkante: Muster als Schablone – nur wo die Scherbe Logo enthält
+      ctx.save(); ctx.clip(e.sh.path); ctx.globalCompositeOperation = 'source-atop';
+      ctx.strokeStyle = EDGE; ctx.globalAlpha *= EDGE_A; ctx.lineWidth = 1.5 / K; ctx.stroke(e.sh.gpath);
+      ctx.restore(); ctx.strokeStyle = pattern; ctx.lineWidth = .9 / K;
     }
   }
   ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -444,7 +537,11 @@ function step(b, T, p) {
   if (age > .5 && Math.abs(b.dx) < .2 && Math.abs(b.dy) < .2 && Math.abs(b.vx) < .05 && Math.abs(b.vy) < .05 && Math.abs(b.r) < .002 && Math.abs(b.tl) < .01) {
     reset(b);
     // eingerastet: Bruchlinien kurz als feine Nähte zeigen
-    seams.push({ T, list: b.sh ? b.sh.filter(x => !x.free) : [b] });
+    const list = b.sh ? b.sh.filter(x => !x.free) : [b];
+    seams.push({ T, list });
+    // Kintsugi: die Bruchstelle bleibt als hauchfeine Goldlinie im Logo (bis zum Neuladen)
+    for (const x of list) x.scar = 1;
+    scarPath = null;
   }
 }
 // Aktuelle Lage einer Scherbe auf dem Bildschirm: eigene Bewegung, oder die ihres Brockens
@@ -470,17 +567,24 @@ function spr(e, ox_, oy_) {
   const a = co * ct, b = si * ct, c = -si, d = co, q = e.sh.sp;
   const ex = e.cx + e.dx + ox_, ey = e.cy + e.dy + oy_;
   ctx.setTransform(dpr * a, dpr * b, dpr * c, dpr * d, dpr * (ex - a * e.cx - c * e.cy), dpr * (ey - b * e.cx - d * e.cy));
-  ctx.drawImage(atlas, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
+  ctx.drawImage(atlasB, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
 }
 // Feine helle Nähte an frisch eingerasteten Scherben, die schnell verblassen
+const SCAR_A = .38;   // Kintsugi-Narben: Anteil der Kanten-Stärke, der dauerhaft bleibt (0 = keine Narben)
 function drawSeams(T, K) {
-  if (!seams.length) return;
-  ctx.strokeStyle = '#eee8dd'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.1 / K;
+  // Narben: alle Stellen, die schon einmal gebrochen sind – als EIN Pfad, damit es schnell bleibt
+  if (scarPath === null) { scarPath = new Path2D(); let n = 0; for (const sh of shardsL) if (sh.scar) { scarPath.addPath(sh.gpath); n++; } if (!n) scarPath = false; }
+  if (!seams.length && !scarPath) return;
+  // Gold nur auf dem Logo (source-atop), nie daneben
+  ctx.strokeStyle = EDGE; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 1.1 / K;
+  ctx.globalCompositeOperation = 'source-atop';
+  if (scarPath) { ctx.globalAlpha = EDGE_A * SCAR_A; ctx.stroke(scarPath); }
+  // frisch eingerastet: glimmt kurz etwas stärker und klingt dann auf die Narbe ab
   for (const m of seams) {
-    ctx.globalAlpha = Math.max(0, 1 - (T - m.T) / 750) * .9;
-    for (const sh of m.list) ctx.stroke(sh.path);
+    ctx.globalAlpha = Math.max(0, 1 - (T - m.T) / 900) * EDGE_A * (1 - SCAR_A);
+    for (const sh of m.list) ctx.stroke(sh.gpath);
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.lineCap = 'butt';
 }
 function ui(p) {
   const a = Math.min(1, Math.max(0, (p - .82) / .12));
