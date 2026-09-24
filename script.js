@@ -20,11 +20,14 @@ const LETTERS = [...svg.querySelectorAll('.word path, .sub path')].map(p => new 
 const VB = { x: 40, y: 45, w: 571, h: 340 };
 const F = { x: 281.56, y: 145 };   // Zielpunkt: in der Lücke zwischen Ring und Punkt
 
-function drawLogo(textAlpha) {
-  ctx.fillStyle = INK; ctx.strokeStyle = INK; ctx.lineWidth = 22.525;
-  ctx.stroke(RING); ctx.fill(DOT);
-  if (textAlpha > 0) { ctx.globalAlpha = textAlpha; for (const l of LETTERS) ctx.fill(l, 'evenodd'); ctx.globalAlpha = 1; }
+function drawLogo(textAlpha, g = ctx) {
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 22.525;
+  g.stroke(RING); g.fill(DOT);
+  if (textAlpha > 0) { g.globalAlpha = textAlpha; for (const l of LETTERS) g.fill(l, 'evenodd'); g.globalAlpha = 1; }
 }
+// Das Logo wird pro Bild nur EINMAL gezeichnet (hier hinein); die Stücke sind danach nur noch Bildausschnitte davon – viel schneller auf dem Handy
+const off = document.createElement('canvas'), octx = off.getContext('2d');
+let lastP = -1, lastMoving = 0, lastA = -1;
 
 let W, H, dpr, k0 = 1, ox = 0, oy = 0, cu = 10, cells = [], maxS = 40;
 let mouse = { x: -9999, y: -9999, px: -9999, py: -9999 };
@@ -64,8 +67,9 @@ function toUnits() { const k = k0 * s; ctx.setTransform(dpr * k, 0, 0, dpr * k, 
 const h2 = inside.querySelector('h2');
 let shards = [], sheetT = null, gs = 8;
 function buildShards() {
+  lastP = -1;
   const bb = box.getBoundingClientRect(), cs = getComputedStyle(h2);
-  gs = W < 640 ? 5 : 8;
+  gs = W < 640 ? 7 : 8;
   sheetT = document.createElement('canvas'); sheetT.width = W * dpr; sheetT.height = H * dpr;
   const g = sheetT.getContext('2d'); g.scale(dpr, dpr);
   g.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; g.fillStyle = INK; g.textBaseline = 'alphabetic';
@@ -110,16 +114,17 @@ function drawShards(p) {
 }
 
 function resize() {
-  dpr = Math.min(devicePixelRatio || 1, 2);
+  dpr = Math.min(devicePixelRatio || 1, box.clientWidth < 640 ? 1.5 : 2);
   W = box.clientWidth; H = box.clientHeight;
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  s = 1; build();
+  canvas.width = off.width = W * dpr; canvas.height = off.height = H * dpr;
+  s = 1; build(); lastP = -1;
 }
 
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 function tick() {
   const r = stage.getBoundingClientRect();
+  if (r.bottom < 0) { lastP = -1; requestAnimationFrame(tick); return; }   // Bühne ganz weggescrollt: Pause
   const p = Math.min(1, Math.max(0, -r.top / (stage.offsetHeight - innerHeight)));
   const z = ease(Math.min(1, p / .72));
   s = 1 + (maxS - 1) * z * z * z;
@@ -131,6 +136,8 @@ function tick() {
   const speed = Math.min(40, Math.hypot(mvx, mvy));
   const R = Math.max(55, Math.min(piece * 1.3, 420)) + speed;
   const kf = Math.min(4, Math.max(1, piece / 30));   // grosse Stücke (beim Hineinzoomen) brauchen mehr Schwung
+  if (p === lastP && !lastMoving && !bursts.length && speed <= .5) { requestAnimationFrame(tick); return; }   // Stillstand: nichts neu zeichnen
+  lastP = p;
   const T = now(), moving = [];
 
   const hits = bursts.splice(0);
@@ -172,25 +179,29 @@ function tick() {
   }
 
   // Zeichnen: ganzes Logo, Löcher wo Stücke fehlen, dann die Stücke selbst
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-  toUnits(); drawLogo(textAlpha);
-  const e = .4 / (k0 * s);
-  for (const c of moving) ctx.clearRect(c.ux - e, c.uy - e, cu + 2 * e, cu + 2 * e);
+  lastMoving = moving.length;
+  octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
+  { const k = k0 * s; octx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
+  drawLogo(textAlpha, octx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(off, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const c of moving) ctx.clearRect(sx(c.ux) - .4, sy(c.uy) - .4, piece + .8, piece + .8);
   for (const c of moving) {
-    const hx = sx(c.ux + cu / 2) + c.dx, hy = sy(c.uy + cu / 2) + c.dy;
+    const x0 = sx(c.ux), y0 = sy(c.uy), hx = x0 + piece / 2 + c.dx, hy = y0 + piece / 2 + c.dy;
     if (hx < -piece || hy < -piece || hx > W + piece || hy > H + piece) continue;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Ausschnitt auf den sichtbaren Bereich begrenzen (Safari mag keine Ausschnitte ausserhalb des Bildes)
+    const ax = Math.max(0, x0), ay = Math.max(0, y0), bx = Math.min(W, x0 + piece), by = Math.min(H, y0 + piece);
+    if (bx <= ax || by <= ay) continue;
     ctx.save();
-    ctx.translate(hx, hy); ctx.rotate(c.r); ctx.scale(k0 * s, k0 * s); ctx.translate(-(c.ux + cu / 2), -(c.uy + cu / 2));
-    ctx.beginPath(); ctx.rect(c.ux, c.uy, cu, cu); ctx.clip();
-    drawLogo(c.word ? textAlpha : 1);
+    ctx.translate(hx, hy); ctx.rotate(c.r);
+    ctx.drawImage(off, ax * dpr, ay * dpr, (bx - ax) * dpr, (by - ay) * dpr, ax - x0 - piece / 2, ay - y0 - piece / 2, bx - ax, by - ay);
     ctx.restore();
   }
 
   drawShards(p);
   const a = Math.min(1, Math.max(0, (p - .82) / .12));
-  inside.style.setProperty('--a', a);
-  inside.style.pointerEvents = a > .9 ? 'auto' : 'none';
+  if (a !== lastA) { lastA = a; inside.style.setProperty('--a', a); inside.style.pointerEvents = a > .9 ? 'auto' : 'none'; }
   dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
   needle.style.left = (p * 100) + '%';
   requestAnimationFrame(tick);
@@ -201,7 +212,10 @@ box.addEventListener('pointerdown', e => { const b = canvas.getBoundingClientRec
 box.addEventListener('pointerleave', () => { mouse.x = mouse.y = mouse.px = mouse.py = -9999; });
 // Beim Scrollen bewegt sich die Seite unter der Maus – das zählt nicht als Mausbewegung
 addEventListener('scroll', () => { mouse.px = mouse.x; mouse.py = mouse.y; }, { passive: true });
-addEventListener('resize', () => { clearTimeout(resize.t); resize.t = setTimeout(() => { resize(); buildShards(); }, 150); });
+addEventListener('resize', () => {
+  if (box.clientWidth === W && box.clientHeight === H) return;
+  clearTimeout(resize.t); resize.t = setTimeout(() => { resize(); buildShards(); }, 150);
+});
 resize(); tick();
 document.fonts.ready.then(buildShards);
 
