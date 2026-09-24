@@ -1,6 +1,8 @@
 // Canuma Studio – Script
 const INK = '#1c1c1c';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Touch-Geräte (Handy/Tablet): Logo zerbröckelt beim Scrollen, statt dass die Kamera hineinzoomt
+const touchDev = matchMedia('(pointer: coarse)').matches;
 const stage = document.querySelector('.stage');
 const box = document.querySelector('.sticky');
 const canvas = document.querySelector('canvas');
@@ -9,6 +11,7 @@ const svg = document.querySelector('.sticky svg.logo');
 const inside = document.querySelector('.inside');
 const dist = document.querySelector('.dist');
 const scaleEl = document.querySelector('.scale');
+if (touchDev) dist.style.visibility = 'hidden';   // Handy: kein Zoom, also auch keine Meter-Anzeige
 for (let i = 0; i < 31; i++) scaleEl.appendChild(document.createElement('i'));
 const needle = document.createElement('b'); scaleEl.appendChild(needle);
 const stops = ['∞', '10 m', '5 m', '3 m', '2 m', '1.5 m', '1 m', '0.7 m', '0.5 m', '0.3 m'];
@@ -56,6 +59,13 @@ function build() {
         if (data[(y * t.width + x) * 4 + 3] > 0) { hit = true; break; }
     if (hit) cells.push({ ux, uy, word: uy > 235, dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, t: 0, loose: false });
   }
+  // Handy: Reihenfolge beim Zerbröckeln – aussen zuerst, der Punkt ganz zuletzt (plus etwas Zufall)
+  const dist = c => Math.hypot(c.ux + cu / 2 - 325.56, c.uy + cu / 2 - 145);
+  const maxD = Math.max(...cells.map(dist));
+  for (const c of cells) {
+    c.cd = Math.min(1, Math.max(0, .8 * (1 - dist(c) / maxD) + .2 * Math.random()));
+    c.fx = Math.random() * 2 - 1; c.fy = Math.random(); c.fr = Math.random() * 2 - 1; c.cr = 0; c.jit = 0;
+  }
 }
 // Umrechnung Logo-Einheiten → Bildschirm, mit aktuellem Zoom s um den Zielpunkt F
 let s = 1;
@@ -97,7 +107,8 @@ function buildShards() {
       if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
     if (!hit) continue;
     const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
-    shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    if (touchDev) shards.push({ x, y, sx: x + (Math.random() - .5) * W * .6, sy: H + gs + Math.random() * H * .35, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    else shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
   }
 }
 function drawShards(p) {
@@ -132,7 +143,6 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // Auf dem Handy liefert das Scrollen die Position unregelmässig (vor allem beim Nachschwingen nach dem Wischen).
 // Darum folgt der Zoom dort der Scroll-Position weich nachgezogen statt ruckartig.
-const touchDev = matchMedia('(pointer: coarse)').matches;
 let ps = -1, lastT = 0;
 
 function tickInner() {
@@ -148,9 +158,11 @@ function tickInner() {
     if (Math.abs(target - ps) < .0003) ps = target;
     p = ps;
   }
+  const crumb = touchDev;
   const z = ease(Math.min(1, p / .72));
-  s = 1 + (maxS - 1) * z * z * z;
-  const textAlpha = Math.max(0, 1 - p * 6);
+  s = crumb ? 1 : 1 + (maxS - 1) * z * z * z;
+  const textAlpha = crumb ? 1 : Math.max(0, 1 - p * 6);
+  const pc = crumb ? Math.min(1, p / .58) : 0;   // 0 = Logo ganz, 1 = alles weggebröckelt
   const piece = cu * k0 * s;                   // Stückgrösse auf dem Bildschirm
 
   // Maus: Geschwindigkeit bestimmt, wie viel zerbricht
@@ -162,11 +174,26 @@ function tickInner() {
   lastP = p;
   const T = now(), moving = [];
 
+  if (crumb && pc >= 1) {   // Logo ist komplett weggebröckelt: nur noch die Überschrift
+    lastMoving = 0; bursts.length = 0;
+    for (const c of cells) { c.dx = c.dy = c.vx = c.vy = c.r = c.vr = 0; c.loose = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawShards(p); ui(p);
+    requestAnimationFrame(tick); return;
+  }
+
   const hits = bursts.splice(0);
   for (const c of cells) {
     if (c.word && !textAlpha) continue;
     const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
-    for (const b of hits) {
+    if (crumb) {
+      // Wie weit ist dieses Stück schon abgebröckelt? Kurz davor zittert es etwas
+      const st = c.cd * .7;
+      c.cr = Math.min(1, Math.max(0, (pc - st) / .3));
+      c.jit = !c.cr && pc > 0 && pc > st - .06 ? Math.sin(pc * 900 + c.ux * .7) * 1.4 * (1 - (st - pc) / .06) : 0;
+    }
+    if (!c.cr) for (const b of hits) {
       const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(W < 640 ? 70 : 90, Math.min(piece * 2, 520));
       if (d < BR) {
         const f = (BR - d) / BR;
@@ -184,7 +211,7 @@ function tickInner() {
         c.t = T; c.loose = true;
       }
     }
-    if (!c.loose) continue;
+    if (!c.loose) { if (c.cr || c.jit) moving.push(c); continue; }
     // Erst frei schweben, dann zieht es die Stücke langsam zurück
     const age = (T - c.t) / 1000;
     const pull = age < .3 ? 0 : Math.min(1, (age - .3) / .8) ** 2 * .04;
@@ -197,6 +224,7 @@ function tickInner() {
     c.dx += c.vx; c.dy += c.vy; c.r += c.vr;
     if (age > .5 && Math.abs(c.dx) < .2 && Math.abs(c.dy) < .2 && Math.abs(c.vx) < .05 && Math.abs(c.vy) < .05 && Math.abs(c.r) < .002) {
       c.dx = c.dy = c.vx = c.vy = c.r = c.vr = 0; c.loose = false;
+      if (c.cr || c.jit) moving.push(c);
     } else moving.push(c);
   }
 
@@ -209,10 +237,7 @@ function tickInner() {
     drawLogo(textAlpha, ctx);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawShards(p);
-    const a = Math.min(1, Math.max(0, (p - .82) / .12));
-    if (a !== lastA) { lastA = a; inside.style.setProperty('--a', a); inside.style.pointerEvents = a > .9 ? 'auto' : 'none'; }
-    dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
-    needle.style.left = (p * 100) + '%';
+    ui(p);
     requestAnimationFrame(tick); return;
   }
   octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
@@ -222,24 +247,37 @@ function tickInner() {
   ctx.drawImage(off, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   for (const c of moving) ctx.clearRect(sx(c.ux) - .4, sy(c.uy) - .4, piece + .8, piece + .8);
+  let ga = 1;
   for (const c of moving) {
-    const x0 = sx(c.ux), y0 = sy(c.uy), hx = x0 + piece / 2 + c.dx, hy = y0 + piece / 2 + c.dy;
+    let ex = c.dx + c.jit, ey = c.dy, rot = c.r, al = 1;
+    if (c.cr) {
+      const t = c.cr; if (t >= 1) continue;
+      // löst sich, hüpft minim hoch und fällt dann immer schneller nach unten weg
+      ex += c.fx * t * 50;
+      ey += t * t * H * (.55 + c.fy * .45) - Math.sin(t * Math.PI) * 14;
+      rot += c.fr * t * 5;
+      al = t < .5 ? 1 : 1 - (t - .5) / .5;
+    }
+    const x0 = sx(c.ux), y0 = sy(c.uy), hx = x0 + piece / 2 + ex, hy = y0 + piece / 2 + ey;
     if (hx < -piece || hy < -piece || hx > W + piece || hy > H + piece) continue;
     // Ausschnitt auf den sichtbaren Bereich begrenzen (Safari mag keine Ausschnitte ausserhalb des Bildes)
     const ax = Math.max(0, x0), ay = Math.max(0, y0), bx = Math.min(W, x0 + piece), by = Math.min(H, y0 + piece);
     if (bx <= ax || by <= ay) continue;
-    ctx.save();
-    ctx.translate(hx, hy); ctx.rotate(c.r);
+    if (al !== ga) ctx.globalAlpha = ga = al;
+    const co = Math.cos(rot) * dpr, sn = Math.sin(rot) * dpr;
+    ctx.setTransform(co, sn, -sn, co, hx * dpr, hy * dpr);
     ctx.drawImage(off, ax * dpr, ay * dpr, (bx - ax) * dpr, (by - ay) * dpr, ax - x0 - piece / 2, ay - y0 - piece / 2, bx - ax, by - ay);
-    ctx.restore();
   }
+  ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  drawShards(p);
+  drawShards(p); ui(p);
+  requestAnimationFrame(tick);
+}
+function ui(p) {
   const a = Math.min(1, Math.max(0, (p - .82) / .12));
   if (a !== lastA) { lastA = a; inside.style.setProperty('--a', a); inside.style.pointerEvents = a > .9 ? 'auto' : 'none'; }
-  dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
+  if (!touchDev) dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
   needle.style.left = (p * 100) + '%';
-  requestAnimationFrame(tick);
 }
 
 box.addEventListener('pointermove', e => { if (e.pointerType === 'touch') return; const b = canvas.getBoundingClientRect(); mouse.x = e.clientX - b.left; mouse.y = e.clientY - b.top; });
