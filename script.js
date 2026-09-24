@@ -137,7 +137,7 @@ function build() {
       if (other && other.cl !== sh.cl) { sh.gpath.moveTo(a[0], a[1]); sh.gpath.lineTo(b[0], b[1]); }
     }
   }
-  scarPath = null;
+  scarPath = null; scarV++;
   for (const c of clusters) { c.cx = c.sh.reduce((a, b) => a + b.cx, 0) / c.sh.length; c.cy = c.sh.reduce((a, b) => a + b.cy, 0) / c.sh.length; c.m = Math.sqrt(c.sh.length); }
   // Handy: Reihenfolge beim Zerbröckeln – aussen zuerst, der Punkt ganz zuletzt (plus etwas Zufall)
   const dist = c => Math.hypot(c.cx - 325.56, c.cy - 145);
@@ -187,7 +187,7 @@ function buildAtlas() {
   }
 }
 function body(o) { return Object.assign(o, { dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, tl: 0, vt: 0, t: 0, loose: false }); }
-let pattern = null, scarPath = null;
+let pattern = null, scarPath = null, scarV = 0;   // scarV zählt hoch, sobald neue Narben dazukommen
 
 // Umrechnung Logo-Einheiten → Bildschirm, mit aktuellem Zoom s um den Zielpunkt F
 let s = 1;
@@ -414,7 +414,7 @@ function tickInner() {
       if (sh.cr || sh.jit) sh.away = true;
       else if (sh.away) { sh.away = false; sh.scar = 1; back.push(sh); }
     }
-    if (back.length) { seams.push({ T, list: back }); scarPath = null; }
+    if (back.length) { seams.push({ T, list: back }); scarPath = null; scarV++; }
   }
   const moving = [];
   for (const sh of shardsL) {
@@ -458,10 +458,10 @@ function tickInner() {
     // ---- schneller Weg: vorbereitete Scherbenbilder ----
     // Das Hilfsbild ist das "stehende" Logo: Scherben, die sich lösen, werden EINMAL daraus ausgestanzt
     // und beim Einrasten wieder eingesetzt – statt in jedem Bild alle Löcher neu zu stanzen
-    if (off.key !== 'atlas|' + W + '|' + H) {
-      off.key = 'atlas|' + W + '|' + H;
+    if (off.key !== 'atlas|' + W + '|' + H + '|' + scarV) {
+      off.key = 'atlas|' + W + '|' + H + '|' + scarV;
       octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
-      octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawLogo(1, octx);
+      octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawLogo(1, octx); drawScars(octx, K);
       for (const sh of shardsL) sh.baked = false;
     }
     for (const sh of moving) sh.mv = T;
@@ -471,8 +471,23 @@ function tickInner() {
       const want = sh.mv === T;
       if (want !== !!sh.baked) {
         const q = sh.sp;
-        octx.globalCompositeOperation = want ? 'destination-out' : 'source-over';
-        octx.drawImage(want ? mask : atlas, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
+        if (want) {
+          // Loch als exakte Form ausschneiden (nicht mit dem Masken-Bild): manche Browser (z. B. Opera mit Grafikkarte)
+          // glätten das Bild beim Ausstanzen, dann bleibt ein leichter grauer Abdruck stehen, bis die Scherbe zurück ist
+          octx.globalCompositeOperation = 'destination-out'; octx.fillStyle = octx.strokeStyle = '#000';
+          octx.lineWidth = 1.2 / k0; octx.lineJoin = 'round';
+          octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
+          octx.fill(sh.path); octx.stroke(sh.path);
+          octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        } else {
+          octx.globalCompositeOperation = 'source-over';
+          octx.drawImage(atlas, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
+          if (sh.scar) {   // eingesetzte Scherbe bekommt ihre Narbe gleich wieder
+            octx.save(); octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
+            octx.globalCompositeOperation = 'source-atop'; octx.strokeStyle = EDGE; octx.globalAlpha = EDGE_A * SCAR_A;
+            octx.lineWidth = 1.1 / K; octx.lineJoin = 'round'; octx.lineCap = 'round'; octx.stroke(sh.gpath); octx.restore();
+          }
+        }
         sh.baked = want;
       }
       if (sh.baked) bakedN++;
@@ -481,19 +496,19 @@ function tickInner() {
     if (!bakedN) off.key = '';   // alles wieder an seinem Platz: nächstes Mal sauber neu zeichnen
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(off, 0, 0);
-    ctx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawSeams(T, K);
+    ctx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawSeams(T, K, false);
     // Schatten nur, solange nicht zu viele Scherben gleichzeitig fliegen (spart beim Zerbröckeln auf dem Handy)
     // (beim Zerbröckeln auf dem Handy ohne Schatten – die Stücke fallen ohnehin weg, und so bleibt es flüssig)
     if (list.length < 140) for (const e of list) { if (e.lift < .05 || e.sh.cr) continue; ctx.globalAlpha = .13 * e.lift * e.al; spr(e, 2 + e.lift * 5, 3 + e.lift * 8); }
     for (const e of list) { ctx.globalAlpha = e.al * (1 - .38 * Math.abs(Math.sin(e.tl))); spr(e, 0, 0); }
   } else {
     // Hilfsbild nur neu zeichnen, wenn sich Zoom oder Schrift geändert haben
-    const offKey = s + '|' + textAlpha + '|' + W + '|' + H;
+    const offKey = s + '|' + textAlpha + '|' + W + '|' + H + '|' + scarV;
     if (offKey !== off.key || !pattern) {
       off.key = offKey;
       octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
       octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
-      drawLogo(textAlpha, octx);
+      drawLogo(textAlpha, octx); drawScars(octx, K);
       pattern = ctx.createPattern(off, 'no-repeat');
     }
     // Das Muster so legen, dass es in Logo-Einheiten genau auf dem Logo liegt
@@ -507,7 +522,7 @@ function tickInner() {
     ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.1 / K; ctx.lineJoin = 'round';
     for (const sh of moving) { ctx.fill(sh.path); ctx.stroke(sh.path); }
     ctx.globalCompositeOperation = 'source-over';
-    drawSeams(T, K);
+    drawSeams(T, K, false);
 
     ctx.fillStyle = pattern; ctx.strokeStyle = pattern; ctx.lineWidth = .9 / K;
     for (const e of list) {   // Schatten
@@ -550,7 +565,7 @@ function step(b, T, p) {
     seams.push({ T, list });
     // Kintsugi: die Bruchstelle bleibt als hauchfeine Goldlinie im Logo (bis zum Neuladen)
     for (const x of list) x.scar = 1;
-    scarPath = null;
+    scarPath = null; scarV++;
   }
 }
 // Aktuelle Lage einer Scherbe auf dem Bildschirm: eigene Bewegung, oder die ihres Brockens
@@ -580,14 +595,25 @@ function spr(e, ox_, oy_) {
 }
 // Feine helle Nähte an frisch eingerasteten Scherben, die schnell verblassen
 const SCAR_A = .38;   // Kintsugi-Narben: Anteil der Kanten-Stärke, der dauerhaft bleibt (0 = keine Narben)
-function drawSeams(T, K) {
-  // Narben: alle Stellen, die schon einmal gebrochen sind – als EIN Pfad, damit es schnell bleibt
+// Narben: alle Stellen, die schon einmal gebrochen sind – als EIN Pfad, damit es schnell bleibt
+function scars() {
   if (scarPath === null) { scarPath = new Path2D(); let n = 0; for (const sh of shardsL) if (sh.scar) { scarPath.addPath(sh.gpath); n++; } if (!n) scarPath = false; }
-  if (!seams.length && !scarPath) return;
+  return scarPath;
+}
+// Narben direkt ins Logo-Hilfsbild einbacken: fliegt eine Scherbe weg, wird ihre Narbe mit ausgeschnitten.
+// (Früher wurden sie jedes Bild darübergemalt – in Opera blieb dann in der Lücke ein leichter grauer Abdruck stehen.)
+function drawScars(g, K) {
+  if (!scars()) return;
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.strokeStyle = EDGE; g.globalAlpha = EDGE_A * SCAR_A;
+  g.lineWidth = 1.1 / K; g.lineJoin = 'round'; g.lineCap = 'round'; g.stroke(scarPath); g.restore();
+}
+// withScars = false: die Narben sind schon im Hilfsbild eingebacken, hier nur noch das frische Aufglimmen
+function drawSeams(T, K, withScars = true) {
+  if (!seams.length && !(withScars && scars())) return;
   // Gold nur auf dem Logo (source-atop), nie daneben
   ctx.strokeStyle = EDGE; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 1.1 / K;
   ctx.globalCompositeOperation = 'source-atop';
-  if (scarPath) { ctx.globalAlpha = EDGE_A * SCAR_A; ctx.stroke(scarPath); }
+  if (withScars && scarPath) { ctx.globalAlpha = EDGE_A * SCAR_A; ctx.stroke(scarPath); }
   // frisch eingerastet: glimmt kurz etwas stärker und klingt dann auf die Narbe ab
   for (const m of seams) {
     ctx.globalAlpha = Math.max(0, 1 - (T - m.T) / 900) * EDGE_A * (1 - SCAR_A);
