@@ -53,6 +53,11 @@ section.block { max-width: 1100px; margin: 0 auto; padding: clamp(64px, 12vw, 14
 .clock { font-variant-numeric: tabular-nums; }
 footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48px); display: flex; justify-content: space-between; border-top: 1px solid var(--line); }
 
+/* Handy/Tablet: keine Scroll-Leiste unten (das Logo zerbröckelt dort statt zu zoomen) */
+@media (pointer: coarse) {
+  .hud { display: none; }
+}
+
 @media (max-width: 640px) {
   nav { gap: 14px; font-size: 11px; }
   .hud { grid-template-columns: 1fr auto; }
