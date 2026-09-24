@@ -67,6 +67,10 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 /* ---------- Projekte: Reiter ---------- */
 @font-face { font-family: "Montserrat"; src: url("fonts/montserrat-bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 .work { max-width: 1240px; margin: 0 auto; padding: clamp(72px, 10vw, 120px) clamp(16px, 4vw, 48px) clamp(64px, 10vw, 120px); }
+/* Handy: Projekte näher an den Studio-Text holen (der steht mittig im Bildschirm, darunter war viel Leere) */
+@media (max-width: 640px) {
+  .work { position: relative; margin-top: -24svh; padding-top: 24px; }
+}
 .work-head { margin-bottom: clamp(32px, 5vw, 56px); }
 .work-head h2 { font-family: var(--display); font-weight: 400; font-size: clamp(40px, 6vw, 80px); line-height: 1.02; margin: 0; }
 .tabs { position: relative; display: flex; gap: clamp(22px, 4vw, 48px); border-bottom: 1px solid var(--line); margin-bottom: clamp(28px, 4vw, 48px); overflow-x: auto; scrollbar-width: none; }
