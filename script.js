@@ -39,7 +39,7 @@ function build() {
   const lw = Math.min(W * .8, 640);
   k0 = lw / VB.w;
   ox = (W - lw) / 2; oy = (H - VB.h * k0) / 2 - H * .03;
-  cu = (lw < 420 ? 8 : 12) / k0;   // Kantenlänge eines Stücks, in Logo-Einheiten
+  cu = (lw < 420 ? 10 : 12) / k0;   // Kantenlänge eines Stücks, in Logo-Einheiten
   const far = Math.max(...[[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => Math.hypot(x - sx(F.x), y - sy(F.y))));
   maxS = far / (18.5 * .95 * k0);
 
@@ -69,9 +69,14 @@ let shards = [], sheetT = null, gs = 8;
 function buildShards() {
   lastP = -1;
   const bb = box.getBoundingClientRect(), cs = getComputedStyle(h2);
-  gs = W < 640 ? 7 : 8;
-  sheetT = document.createElement('canvas'); sheetT.width = W * dpr; sheetT.height = H * dpr;
-  const g = sheetT.getContext('2d'); g.scale(dpr, dpr);
+  gs = W < 640 ? 11 : 8;   // Handy: grössere, dafür weniger Scherben (flüssiger)
+  // Das Hilfsbild nur so gross wie die Überschrift machen, nicht bildschirmgross – das Handy muss viel weniger umherkopieren
+  const hb = h2.getBoundingClientRect();
+  const bx0 = Math.floor(hb.left - bb.left) - gs, by0 = Math.floor(hb.top - bb.top) - gs;
+  sheetT = document.createElement('canvas');
+  sheetT.width = Math.ceil((hb.width + gs * 3) * dpr); sheetT.height = Math.ceil((hb.height + gs * 3) * dpr);
+  sheetT.ox = bx0; sheetT.oy = by0;
+  const g = sheetT.getContext('2d'); g.scale(dpr, dpr); g.translate(-bx0, -by0);
   g.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; g.fillStyle = INK; g.textBaseline = 'alphabetic';
   const asc = g.measureText('Hg').fontBoundingBoxAscent;
   // Jeden Buchstaben genau dort ins Hilfsbild zeichnen, wo der Browser ihn setzt
@@ -88,7 +93,7 @@ function buildShards() {
   shards = [];
   for (let y = Math.floor(minY); y < maxY; y += gs) for (let x = Math.floor(minX); x < maxX; x += gs) {
     let hit = false;
-    for (let yy = y * dpr | 0; yy < (y + gs) * dpr && !hit; yy += 2) for (let xx = x * dpr | 0; xx < (x + gs) * dpr; xx += 2)
+    for (let yy = (y - by0) * dpr | 0; yy < (y - by0 + gs) * dpr && !hit; yy += 2) for (let xx = (x - bx0) * dpr | 0; xx < (x - bx0 + gs) * dpr; xx += 2)
       if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
     if (!hit) continue;
     const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
@@ -99,22 +104,25 @@ function drawShards(p) {
   const a2 = Math.min(1, Math.max(0, (p - .6) / .26));   // 0 = Scherben weit verstreut, 1 = fertiges Wort
   h2.style.opacity = a2 >= 1 ? 1 : 0;
   if (a2 <= 0 || a2 >= 1 || !sheetT) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const gd = gs * dpr, sox = sheetT.ox, soy = sheetT.oy;
+  let ga = 1;
   for (const q of shards) {
     const t = Math.min(1, Math.max(0, (a2 - q.d) / (1 - q.d)));
     if (!t) continue;
     const e = 1 - Math.pow(1 - t, 3);
-    const x = q.sx + (q.x - q.sx) * e, y = q.sy + (q.y - q.sy) * e;
-    ctx.globalAlpha = Math.min(1, t * 4);
-    ctx.save(); ctx.translate(x + gs / 2, y + gs / 2); ctx.rotate(q.r * (1 - e));
-    ctx.drawImage(sheetT, q.x * dpr, q.y * dpr, gs * dpr, gs * dpr, -gs / 2, -gs / 2, gs, gs);
-    ctx.restore();
+    const x = q.sx + (q.x - q.sx) * e + gs / 2, y = q.sy + (q.y - q.sy) * e + gs / 2;
+    if (x < -gs || y < -gs || x > W + gs || y > H + gs) continue;   // ausserhalb des Bildschirms: nicht zeichnen
+    const al = Math.min(1, t * 4); if (al !== ga) ctx.globalAlpha = ga = al;
+    // Drehung direkt setzen statt save/restore – spart auf dem Handy viel Zeit
+    const rot = q.r * (1 - e), c = Math.cos(rot) * dpr, sn = Math.sin(rot) * dpr;
+    ctx.setTransform(c, sn, -sn, c, x * dpr, y * dpr);
+    ctx.drawImage(sheetT, (q.x - sox) * dpr, (q.y - soy) * dpr, gd, gd, -gs / 2, -gs / 2, gs, gs);
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 function resize() {
-  dpr = Math.min(devicePixelRatio || 1, box.clientWidth < 640 ? 1.5 : 2);
+  dpr = Math.min(devicePixelRatio || 1, 2);   // Handy jetzt auch 2× – schärfere Kanten
   W = box.clientWidth; H = box.clientHeight;
   canvas.width = off.width = W * dpr; canvas.height = off.height = H * dpr;
   s = 1; build(); lastP = -1;
@@ -122,10 +130,24 @@ function resize() {
 
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-function tick() {
+// Auf dem Handy liefert das Scrollen die Position unregelmässig (vor allem beim Nachschwingen nach dem Wischen).
+// Darum folgt der Zoom dort der Scroll-Position weich nachgezogen statt ruckartig.
+const touchDev = matchMedia('(pointer: coarse)').matches;
+let ps = -1, lastT = 0;
+
+function tickInner() {
   const r = stage.getBoundingClientRect();
-  if (r.bottom < 0) { lastP = -1; requestAnimationFrame(tick); return; }   // Bühne ganz weggescrollt: Pause
-  const p = Math.min(1, Math.max(0, -r.top / (stage.offsetHeight - innerHeight)));
+  if (r.bottom < 0) { lastP = -1; ps = -1; requestAnimationFrame(tick); return; }   // Bühne ganz weggescrollt: Pause
+  // box-Höhe statt innerHeight: auf dem iPhone ändert sich innerHeight, wenn die Adressleiste ein-/ausfährt – das gab Sprünge
+  const target = Math.min(1, Math.max(0, -r.top / (stage.offsetHeight - H)));
+  const T0 = now(), dt = lastT ? Math.min(64, T0 - lastT) : 16.7; lastT = T0;
+  let p = target;
+  if (touchDev && !reduce) {
+    if (ps < 0 || Math.abs(target - ps) > .5) ps = target;
+    else ps += (target - ps) * (1 - Math.pow(.8, dt / 16.7));
+    if (Math.abs(target - ps) < .0003) ps = target;
+    p = ps;
+  }
   const z = ease(Math.min(1, p / .72));
   s = 1 + (maxS - 1) * z * z * z;
   const textAlpha = Math.max(0, 1 - p * 6);
@@ -145,7 +167,7 @@ function tick() {
     if (c.word && !textAlpha) continue;
     const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
     for (const b of hits) {
-      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(90, Math.min(piece * 2, 520));
+      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(W < 640 ? 70 : 90, Math.min(piece * 2, 520));
       if (d < BR) {
         const f = (BR - d) / BR;
         c.vx += (ddx / d * 9 + (Math.random() - .5) * 4) * f * kf; c.vy += (ddy / d * 9 + (Math.random() - .5) * 4) * f * kf;
@@ -180,6 +202,19 @@ function tick() {
 
   // Zeichnen: ganzes Logo, Löcher wo Stücke fehlen, dann die Stücke selbst
   lastMoving = moving.length;
+  if (!moving.length) {
+    // Nichts fliegt herum: Logo direkt zeichnen, ohne Umweg über das Hilfsbild (halbiert die Arbeit beim Scrollen)
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    { const k = k0 * s; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
+    drawLogo(textAlpha, ctx);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawShards(p);
+    const a = Math.min(1, Math.max(0, (p - .82) / .12));
+    if (a !== lastA) { lastA = a; inside.style.setProperty('--a', a); inside.style.pointerEvents = a > .9 ? 'auto' : 'none'; }
+    dist.textContent = stops[Math.min(stops.length - 1, Math.floor(p * stops.length))];
+    needle.style.left = (p * 100) + '%';
+    requestAnimationFrame(tick); return;
+  }
   octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
   { const k = k0 * s; octx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
   drawLogo(textAlpha, octx);
@@ -207,8 +242,20 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
-box.addEventListener('pointermove', e => { const b = canvas.getBoundingClientRect(); mouse.x = e.clientX - b.left; mouse.y = e.clientY - b.top; });
-box.addEventListener('pointerdown', e => { const b = canvas.getBoundingClientRect(); bursts.push({ x: e.clientX - b.left, y: e.clientY - b.top }); });
+box.addEventListener('pointermove', e => { if (e.pointerType === 'touch') return; const b = canvas.getBoundingClientRect(); mouse.x = e.clientX - b.left; mouse.y = e.clientY - b.top; });
+// Maus: sofort beim Klicken. Finger: erst beim Loslassen und nur, wenn es ein echtes Antippen war –
+// sonst zerspringt das Logo jedes Mal, wenn man zum Scrollen den Finger aufsetzt
+let down = null;
+box.addEventListener('pointerdown', e => {
+  const b = canvas.getBoundingClientRect(), pt = { x: e.clientX - b.left, y: e.clientY - b.top };
+  if (e.pointerType === 'mouse') bursts.push(pt); else down = { ...pt, cx: e.clientX, cy: e.clientY, t: now() };
+});
+box.addEventListener('pointerup', e => {
+  if (!down || e.pointerType === 'mouse') return;
+  if (Math.hypot(e.clientX - down.cx, e.clientY - down.cy) < 12 && now() - down.t < 400) bursts.push({ x: down.x, y: down.y });
+  down = null;
+});
+box.addEventListener('pointercancel', () => { down = null; });
 box.addEventListener('pointerleave', () => { mouse.x = mouse.y = mouse.px = mouse.py = -9999; });
 // Beim Scrollen bewegt sich die Seite unter der Maus – das zählt nicht als Mausbewegung
 addEventListener('scroll', () => { mouse.px = mouse.x; mouse.py = mouse.y; }, { passive: true });
@@ -216,6 +263,18 @@ addEventListener('resize', () => {
   if (box.clientWidth === W && box.clientHeight === H) return;
   clearTimeout(resize.t); resize.t = setTimeout(() => { resize(); buildShards(); }, 150);
 });
+// Messanzeige: canuma.ch/?fps zeigt oben links Bilder pro Sekunde und Rechenzeit pro Bild
+const fpsEl = /[?&]fps/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement('div')), { style: 'position:fixed;left:8px;top:64px;z-index:99;font:12px/1.3 monospace;background:#1c1c1c;color:#eee8dd;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre' }) : null;
+let fN = 0, fT = now(), fWork = 0, fMax = 0, fSlow = 0, fPrev = 0;
+function tick() {
+  if (!fpsEl) return tickInner();
+  const a = now(); tickInner(); const w = now() - a;
+  fN++; fWork += w; if (fPrev && a - fPrev > 25) fSlow++; fPrev = a; fMax = Math.max(fMax, w);
+  if (a - fT > 1000) {
+    fpsEl.textContent = `${Math.round(fN * 1000 / (a - fT))} fps\nRechnen Ø ${(fWork / fN).toFixed(1)} ms · max ${fMax.toFixed(0)} ms\nHänger ${fSlow}\ndpr ${dpr} · ${W}×${H}`;
+    fN = 0; fT = a; fWork = 0; fMax = 0; fSlow = 0;
+  }
+}
 resize(); tick();
 document.fonts.ready.then(buildShards);
 
