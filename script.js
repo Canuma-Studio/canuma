@@ -407,6 +407,15 @@ function tickInner() {
       sh.jit = !sh.cr && pc > 0 && pc > st - .06 ? Math.sin(pc * 900 + sh.cx * .7) * 1.3 * (1 - (st - pc) / .06) : 0;
     }
   }
+  // Handy/Kintsugi: Scherben, die vom Zerbröckeln zurückkommen, rasten mit Goldnaht ein und behalten eine feine Spur
+  if (crumb) {
+    const back = [];
+    for (const sh of shardsL) {
+      if (sh.cr || sh.jit) sh.away = true;
+      else if (sh.away) { sh.away = false; sh.scar = 1; back.push(sh); }
+    }
+    if (back.length) { seams.push({ T, list: back }); scarPath = null; }
+  }
   const moving = [];
   for (const sh of shardsL) {
     if (sh.word && !textAlpha) continue;
