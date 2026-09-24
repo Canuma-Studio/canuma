@@ -14,6 +14,7 @@
 - 24.09.2026: Privatadresse aus Impressum entfernt; Studio-Text branchenoffen; Projekte als Reiter statt Filmstreifen (ChefKlick-Handy im echten hellen App-Design mit Beispieldaten, scrollt zum Monatsring, Webseiten: Skizze → Gestaltung → Handy, Fotografie: Kamera-Sucher mit Platzhaltern)
 - 24.09.2026: ChefKlick-Handy frei auf Beige (ohne dunkle Fläche); Fotografie: eigener Teller (images/foto/teller.webp, freigestellt, Original in images/original/) auf Schwarz, Sucher stellt scharf, blitzt, Teller dreht sich langsam
 - 24.09.2026: Logo bleibt beim Hineinzoomen zerstörbar; Monatsring im ChefKlick-Handy baut sich komplett auf; Gesamtprüfung, Schriften im Impressum ergänzt, CNAME für canuma.ch
+- 24.09.2026: ONLINE unter https://canuma.ch – GitHub Pages aktiv, DNS bei Hostpoint (4× A 185.199.108–111.153, 4× AAAA 2606:50c0:8000–8003::153, CNAME www → canuma-studio.github.io; alte Hostpoint-A/AAAA für canuma.ch gelöscht, Mail-Einträge unverändert), Enforce HTTPS an; SPF/DKIM/DMARC vorhanden
 
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
@@ -29,5 +30,6 @@
 - Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen
 
 ## Nächste Schritte
-1. GitHub Pages aktivieren, canuma.ch per DNS bei Hostpoint verbinden (Nameserver NICHT ändern, sonst geht die Mail nicht mehr)
-2. Später: SPF/DKIM prüfen, falls Mails im Spam landen
+1. Domain bei GitHub verifizieren (Org-Settings → Pages → Add a domain → TXT-Record bei Hostpoint)
+2. Auto-Verlängerung canuma.ch bei Hostpoint prüfen; ev. ungenutztes Hostpoint-Webhosting kündigen (NICHT Domain/Cloud Office)
+3. Später: Google Search Console, weitere Fotos, ChefKlick-Link sobald chefklick.ch online
