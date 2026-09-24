@@ -13,6 +13,7 @@
 - 24.09.2026: impressum.html + datenschutz.html (DSG, GitHub Pages + Hostpoint-Mail, keine Cookies), Footer-Links verknüpft
 - 24.09.2026: Privatadresse aus Impressum entfernt; Studio-Text branchenoffen; Projekte als Reiter statt Filmstreifen (ChefKlick-Handy im echten hellen App-Design mit Beispieldaten, scrollt zum Monatsring, Webseiten: Skizze → Gestaltung → Handy, Fotografie: Kamera-Sucher mit Platzhaltern)
 - 24.09.2026: ChefKlick-Handy frei auf Beige (ohne dunkle Fläche); Fotografie: eigener Teller (images/foto/teller.webp, freigestellt, Original in images/original/) auf Schwarz, Sucher stellt scharf, blitzt, Teller dreht sich langsam
+- 24.09.2026: Logo bleibt beim Hineinzoomen zerstörbar; Monatsring im ChefKlick-Handy baut sich komplett auf; Gesamtprüfung, Schriften im Impressum ergänzt, CNAME für canuma.ch
 
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
@@ -26,9 +27,7 @@
 - ChefKlick-Link: in index.html vorbereitet (Kommentar), sobald chefklick.ch online ist
 - Foto-Reiter: Bild in images/foto/; beim Übertragen auf den Mac hängt sich ein C2PA-Block an – entfernen und md5 prüfen
 - Kontakt: Zürcher Uhrzeit live, Mail-Adresse wird vom Cursor angezogen
-- Texte sind noch Platzhalter
 
 ## Nächste Schritte
-1. Texte schreiben (Studio, Projekte, Kontakt)
-2. GitHub Pages aktivieren, canuma.ch per DNS bei Hostpoint verbinden (Nameserver NICHT ändern, sonst geht die Mail nicht mehr)
-3. Später: SPF/DKIM prüfen, falls Mails im Spam landen
+1. GitHub Pages aktivieren, canuma.ch per DNS bei Hostpoint verbinden (Nameserver NICHT ändern, sonst geht die Mail nicht mehr)
+2. Später: SPF/DKIM prüfen, falls Mails im Spam landen
