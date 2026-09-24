@@ -293,7 +293,7 @@ for (let d = 1; d <= daysInMonth; d++) {
   l.setAttribute('class', cls); ckTicks.appendChild(l);
 }
 document.querySelector('.n-ok').textContent = nOk; document.querySelector('.n-open').textContent = nOpen;
-const tickLines = [...ckTicks.querySelectorAll('line:not(.f)')];
+const tickLines = [...ckTicks.querySelectorAll('line')];   // alle Tage, auch die kommenden (grau) – der Ring baut sich komplett auf
 function ckSet(pill, n) {
   const total = +pill.dataset.total; pill.querySelector('em').textContent = `${n}/${total}`;
   ckRingsEl.style.setProperty(pill.classList.contains('p-check') ? '--o1' : '--o2', 100 - 100 * n / total);

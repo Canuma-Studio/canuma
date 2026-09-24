@@ -131,7 +131,7 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 .ck-ticks { display: block; width: 15em; height: 15em; margin: 1.8em auto 1.5em; }
 .ck-ticks line { stroke-linecap: round; stroke-width: 3.6; transition: opacity .3s; }
 .ck-ticks .g { stroke: #2e7d46; } .ck-ticks .r { stroke: #b83a3a; } .ck-ticks .f { stroke: #e7e3dc; }
-.ck-ticks.hide line:not(.f) { opacity: 0; }
+.ck-ticks.hide line { opacity: 0; }
 .ck-legend { display: flex; justify-content: center; gap: .6em; }
 .ck-legend span { display: inline-flex; align-items: center; gap: .5em; border: 1px solid #dcd8d0; border-radius: 99em; padding: .55em 1em; color: #333; }
 .ck-legend b { font-weight: 400; font-variant-numeric: tabular-nums; }
