@@ -37,78 +37,124 @@ let mouse = { x: -9999, y: -9999, px: -9999, py: -9999 };
 const bursts = [];   // Antippen/Klicken: lässt das Logo an dieser Stelle zerspringen
 const now = () => performance.now();
 
-// Welche Quadrate überhaupt Logo enthalten: einmal in ein kleines Hilfsbild zeichnen und nachschauen
+// ---------- Glasscherben ----------
+// Das Logo wird in unregelmässige Scherben zerlegt (Voronoi – wie zerbrochenes Glas).
+// Nahe beieinander liegende Scherben sind zu grösseren Brocken zusammengefasst:
+// Wo man trifft, splittert es in einzelne Scherben, weiter weg fliegen ganze Brocken.
+let shardsL = [], clusters = [], fu = 12, seams = [];
 function build() {
   const lw = Math.min(W * .8, 640);
   k0 = lw / VB.w;
   ox = (W - lw) / 2; oy = (H - VB.h * k0) / 2 - H * .03;
-  cu = (lw < 420 ? 10 : 12) / k0;   // Kantenlänge eines Stücks, in Logo-Einheiten
+  fu = (touchDev ? 12 : 15) / k0;   // Grösse einer Scherbe, in Logo-Einheiten
+  cu = fu;
   const far = Math.max(...[[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => Math.hypot(x - sx(F.x), y - sy(F.y))));
   maxS = far / (18.5 * .95 * k0);
 
-  const q = 2, t = document.createElement('canvas');
+  // Hilfsbild: wo ist überhaupt Logo?
+  const q = 1, t = document.createElement('canvas');
   t.width = VB.w * q; t.height = VB.h * q;
   const g = t.getContext('2d'); g.scale(q, q); g.translate(-VB.x, -VB.y);
   g.lineWidth = 22.525; g.stroke(RING); g.fill(DOT); for (const l of LETTERS) g.fill(l, 'evenodd');
   const data = g.getImageData(0, 0, t.width, t.height).data;
-  cells = [];
-  for (let uy = VB.y; uy < VB.y + VB.h; uy += cu) for (let ux = VB.x; ux < VB.x + VB.w; ux += cu) {
-    let hit = false;
-    for (let y = (uy - VB.y) * q | 0; y < Math.min((uy + cu - VB.y) * q, t.height) && !hit; y++)
-      for (let x = (ux - VB.x) * q | 0; x < Math.min((ux + cu - VB.x) * q, t.width); x++)
-        if (data[(y * t.width + x) * 4 + 3] > 0) { hit = true; break; }
-    if (hit) cells.push({ ux, uy, word: uy > 235, dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, t: 0, loose: false });
-  }
-  // Handy: jedes Stück fliegt bei der Explosion von der Logo-Mitte weg nach aussen (mit etwas Streuung)
-  for (const c of cells) {
-    const ddx = c.ux + cu / 2 - 325.56, ddy = c.uy + cu / 2 - 215, a = Math.atan2(ddy, ddx) + (Math.random() - .5) * .7;
-    c.ex = Math.cos(a); c.ey = Math.sin(a);
-    c.cd = Math.random() * .12;                 // leicht versetzter Start, damit es nicht wie ein Block wirkt
-    c.fy = Math.random(); c.fr = Math.random() * 2 - 1; c.cr = 0; c.jit = 0;
-  }
-  buildCracks();
-}
+  const ink = (x, y) => { x = (x - VB.x) * q | 0; y = (y - VB.y) * q | 0; return x >= 0 && y >= 0 && x < t.width && y < t.height && data[(y * t.width + x) * 4 + 3] > 40; };
 
-// ---------- Risse (Handy): je weiter man scrollt, desto mehr und längere Risse ----------
-let cracks = [];
-function buildCracks() {
-  cracks = [];
-  const add = (x, y, ang, len, a, w, depth) => {
-    const pts = [[x, y]], acc = [0]; let L = 0;
-    while (L < len) {
-      const st = 5 + Math.random() * 9;
-      ang += (Math.random() - .5) * .9;
-      x += Math.cos(ang) * st; y += Math.sin(ang) * st; L += st;
-      pts.push([x, y]); acc.push(L);
-      // ab und zu verzweigt sich ein Riss
-      if (depth < 2 && Math.random() < .09) add(x, y, ang + (Math.random() < .5 ? -1 : 1) * (.5 + Math.random() * .7), len * (.3 + Math.random() * .3), a + (L / len) * .45, w * .7, depth + 1);
+  // Zufällig verschobenes Raster als Startpunkte → gleichmässig grosse, aber unregelmässige Scherben
+  const x0 = VB.x - fu, y0 = VB.y - fu, nx = Math.ceil((VB.w + 2 * fu) / fu), ny = Math.ceil((VB.h + 2 * fu) / fu);
+  const seed = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) seed.push([x0 + (i + .12 + Math.random() * .76) * fu, y0 + (j + .12 + Math.random() * .76) * fu]);
+  const clip = (poly, px, py, nx_, ny_) => {   // Teil des Vielecks behalten, der auf der eigenen Seite der Mittellinie liegt
+    const out = [];
+    for (let k = 0; k < poly.length; k++) {
+      const a = poly[k], b = poly[(k + 1) % poly.length];
+      const da = (a[0] - px) * nx_ + (a[1] - py) * ny_, db = (b[0] - px) * nx_ + (b[1] - py) * ny_;
+      if (da <= 0) out.push(a);
+      if ((da <= 0) !== (db <= 0)) { const tt = da / (da - db); out.push([a[0] + (b[0] - a[0]) * tt, a[1] + (b[1] - a[1]) * tt]); }
     }
-    cracks.push({ pts, acc, len: L, a, w });
+    return out;
   };
-  // Einschlagpunkte: der Punkt in der Mitte, dann im Schriftzug
-  const origins = [[325.56, 145, 7], [300, 285, 3], [140, 280, 2], [500, 285, 2], [330, 355, 2]];
-  origins.forEach(([ox0, oy0, n], i) => {
-    for (let k = 0; k < n; k++) add(ox0, oy0, (k / n) * Math.PI * 2 + Math.random() * .8, 80 + Math.random() * 150, i * .1 + Math.random() * .15, 1.8, 0);
-  });
-}
-function drawCracks(g, q) {   // q: 0 = keine Risse, 1 = voll gerissen
-  if (q <= 0 || !cracks.length) return;
-  g.strokeStyle = '#eee8dd'; g.lineCap = 'round'; g.lineJoin = 'round';
-  for (const c of cracks) {
-    const f = Math.min(1, Math.max(0, (q - c.a) / .45));
-    if (!f) continue;
-    const upto = f * c.len;
-    g.lineWidth = c.w * (.6 + q * .9) / k0;   // Pixelbreite → Logo-Einheiten
-    g.beginPath(); g.moveTo(c.pts[0][0], c.pts[0][1]);
-    for (let i = 1; i < c.pts.length; i++) {
-      if (c.acc[i] <= upto) { g.lineTo(c.pts[i][0], c.pts[i][1]); continue; }
-      const t = (upto - c.acc[i - 1]) / (c.acc[i] - c.acc[i - 1]);
-      g.lineTo(c.pts[i - 1][0] + (c.pts[i][0] - c.pts[i - 1][0]) * t, c.pts[i - 1][1] + (c.pts[i][1] - c.pts[i - 1][1]) * t);
-      break;
+  // Brocken: grobes Raster, jede Scherbe gehört zum nächsten Brocken-Mittelpunkt
+  const cs = fu * 3.3, cnx = Math.ceil((VB.w + 2 * fu) / cs) + 1, cny = Math.ceil((VB.h + 2 * fu) / cs) + 1, cseed = [];
+  for (let j = 0; j < cny; j++) for (let i = 0; i < cnx; i++) cseed.push([x0 + (i + .2 + Math.random() * .6) * cs, y0 + (j + .2 + Math.random() * .6) * cs]);
+  const cmap = new Map();
+  shardsL = []; clusters = []; seams = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const [px, py] = seed[j * nx + i], h = fu * 2.2;
+    let poly = [[px - h, py - h], [px + h, py - h], [px + h, py + h], [px - h, py + h]];
+    for (let jj = j - 2; jj <= j + 2; jj++) for (let ii = i - 2; ii <= i + 2; ii++) {
+      if ((ii === i && jj === j) || ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const [qx, qy] = seed[jj * nx + ii];
+      poly = clip(poly, (px + qx) / 2, (py + qy) / 2, qx - px, qy - py);
+      if (poly.length < 3) break;
     }
-    g.stroke();
+    if (poly.length < 3) continue;
+    // Enthält die Scherbe Logo? (Punkte im Innern abtasten)
+    let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9, cx = 0, cy = 0;
+    for (const [x, y] of poly) { minx = Math.min(minx, x); miny = Math.min(miny, y); maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); cx += x; cy += y; }
+    cx /= poly.length; cy /= poly.length;
+    const inside = (x, y) => { let c = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return c; };
+    let hit = false;
+    for (let y = miny; y <= maxy && !hit; y += 1.5) for (let x = minx; x <= maxx; x += 1.5) if (ink(x, y) && inside(x, y)) { hit = true; break; }
+    if (!hit) continue;
+    const path = new Path2D(); path.moveTo(poly[0][0], poly[0][1]); for (let k = 1; k < poly.length; k++) path.lineTo(poly[k][0], poly[k][1]); path.closePath();
+    // nächster Brocken
+    let best = 0, bd = 1e18;
+    const ci = Math.floor((cx - x0) / cs), cj = Math.floor((cy - y0) / cs);
+    for (let jj = cj - 1; jj <= cj + 1; jj++) for (let ii = ci - 1; ii <= ci + 1; ii++) {
+      if (ii < 0 || jj < 0 || ii >= cnx || jj >= cny) continue;
+      const k = jj * cnx + ii, d = (cseed[k][0] - cx) ** 2 + (cseed[k][1] - cy) ** 2;
+      if (d < bd) { bd = d; best = k; }
+    }
+    // Brocken nicht über die Lücke zwischen Zeichen und Schriftzug hinweg bilden
+    const key = best * 2 + (cy > 232 ? 1 : 0);
+    if (!cmap.has(key)) { const c = body({ cx: 0, cy: 0, sh: [] }); cmap.set(key, c); clusters.push(c); }
+    const cl = cmap.get(key);
+    const sh = body({ path, cx, cy, cl, word: cy > 232, free: false, bb: [minx, miny, maxx, maxy],
+      fx: Math.random() * 2 - 1, fy: Math.random(), fr: Math.random() * 2 - 1, cd: 0, cr: 0, jit: 0 });
+    cl.sh.push(sh); shardsL.push(sh);
+  }
+  for (const c of clusters) { c.cx = c.sh.reduce((a, b) => a + b.cx, 0) / c.sh.length; c.cy = c.sh.reduce((a, b) => a + b.cy, 0) / c.sh.length; c.m = Math.sqrt(c.sh.length); }
+  // Handy: Reihenfolge beim Zerbröckeln – aussen zuerst, der Punkt ganz zuletzt (plus etwas Zufall)
+  const dist = c => Math.hypot(c.cx - 325.56, c.cy - 145);
+  const maxD = Math.max(...shardsL.map(dist));
+  for (const c of shardsL) c.cd = Math.min(1, Math.max(0, .8 * (1 - dist(c) / maxD) + .2 * Math.random()));
+  pattern = null; off.key = '';
+  buildAtlas();
+}
+// Jede Scherbe einmal als kleines fertiges Bild vorbereiten (in einem Sammelbild) –
+// danach muss beim Fliegen nur noch verschoben werden statt ausgeschnitten: viel schneller
+const atlas = document.createElement('canvas'), mask = document.createElement('canvas');   // mask: harte Schablone zum Ausstanzen
+function buildAtlas() {
+  const BX = ox - VB.x * k0, BY = oy - VB.y * k0;   // Logo-Ursprung auf dem Bildschirm bei Zoom 1
+  const lg = document.createElement('canvas'); lg.width = W * dpr; lg.height = H * dpr;
+  const lc = lg.getContext('2d'); lc.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * BX, dpr * BY); drawLogo(1, lc);
+  // Platz im Sammelbild verteilen (Reihe für Reihe)
+  const AW = 1024 / dpr; let x = 0, y = 0, rowH = 0;
+  for (const sh of shardsL) {
+    const b = sh.bb, sx0 = BX + b[0] * k0 - 2, sy0 = BY + b[1] * k0 - 2, w = (b[2] - b[0]) * k0 + 4, h = (b[3] - b[1]) * k0 + 4;
+    if (x + w > AW) { x = 0; y += rowH + 1; rowH = 0; }
+    sh.sp = { ax: x, ay: y, w, h, sx0, sy0 };
+    x += w + 1; rowH = Math.max(rowH, h);
+  }
+  atlas.width = Math.ceil(AW * dpr); atlas.height = Math.ceil((y + rowH + 2) * dpr);
+  const g = atlas.getContext('2d');
+  const pat = g.createPattern(lg, 'no-repeat');
+  pat.setTransform(new DOMMatrix([1 / (dpr * k0), 0, 0, 1 / (dpr * k0), -BX / k0, -BY / k0]));
+  g.fillStyle = pat; g.strokeStyle = pat; g.lineWidth = 1 / k0; g.lineJoin = 'round';
+  mask.width = atlas.width; mask.height = atlas.height;
+  const mg = mask.getContext('2d'); mg.fillStyle = mg.strokeStyle = '#000'; mg.lineWidth = 1.2 / k0; mg.lineJoin = 'round';
+  for (const sh of shardsL) {
+    const q = sh.sp;
+    // Bildschirm → Sammelbild, dann Logo-Einheiten
+    g.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * (q.ax - q.sx0 + BX), dpr * (q.ay - q.sy0 + BY));
+    g.fill(sh.path); g.stroke(sh.path);   // Kontur mitzeichnen: Scherbe minim grösser, so gibt es keine Haarlinien zwischen Nachbarn
+    mg.setTransform(dpr * k0, 0, 0, dpr * k0, dpr * (q.ax - q.sx0 + BX), dpr * (q.ay - q.sy0 + BY));
+    mg.fill(sh.path); mg.stroke(sh.path);
   }
 }
+function body(o) { return Object.assign(o, { dx: 0, dy: 0, vx: 0, vy: 0, r: 0, vr: 0, tl: 0, vt: 0, t: 0, loose: false }); }
+let pattern = null;
+
 // Umrechnung Logo-Einheiten → Bildschirm, mit aktuellem Zoom s um den Zielpunkt F
 let s = 1;
 const sx = u => ox + (F.x - VB.x) * k0 + (u - F.x) * k0 * s;
@@ -149,7 +195,8 @@ function buildShards() {
       if (data[(yy * sheetT.width + xx) * 4 + 3] > 20) { hit = true; break; }
     if (!hit) continue;
     const ang = Math.random() * Math.PI * 2, far = Math.max(W, H) * (.35 + Math.random() * .5);
-    shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    if (touchDev) shards.push({ x, y, sx: x + (Math.random() - .5) * W * .6, sy: H + gs + Math.random() * H * .35, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
+    else shards.push({ x, y, sx: x + Math.cos(ang) * far, sy: y + Math.sin(ang) * far, r: (Math.random() - .5) * 8, d: Math.random() * .55 });
   }
 }
 function drawShards(p) {
@@ -199,128 +246,241 @@ function tickInner() {
     if (Math.abs(target - ps) < .0003) ps = target;
     p = ps;
   }
-  const crumb = touchDev;
+  const crumb = touchDev;   // Handy: Logo zerbröckelt, statt dass hineingezoomt wird
   const z = ease(Math.min(1, p / .72));
   s = crumb ? 1 : 1 + (maxS - 1) * z * z * z;
   const textAlpha = crumb ? 1 : Math.max(0, 1 - p * 6);
-  // Handy-Ablauf: erst Risse (bis p .34), kurz zittern, dann Explosion nach aussen (p .36–.56)
-  const cq = crumb ? Math.min(1, p / .34) : 0;                        // Risse
-  const pe = crumb ? Math.min(1, Math.max(0, (p - .36) / .2)) : 0;    // Explosion
-  const shake = crumb && p > .28 && !pe ? (p - .28) / .08 : 0;
-  const piece = cu * k0 * s;                   // Stückgrösse auf dem Bildschirm
+  const pc = crumb ? Math.min(1, p / .58) : 0;   // 0 = Logo ganz, 1 = alles weggebröckelt
+  const K = k0 * s, BX = sx(0), BY = sy(0);
+  const piece = fu * K;                        // Scherbengrösse auf dem Bildschirm
 
   // Maus: Geschwindigkeit bestimmt, wie viel zerbricht
-  const mvx = mouse.x - mouse.px, mvy = mouse.y - mouse.py; mouse.px = mouse.x; mouse.py = mouse.y;
+  if (mouse.px < -9000) { mouse.px = mouse.x; mouse.py = mouse.y; }   // Maus kommt gerade ins Bild: kein Riesensprung
+  const mvx = Math.max(-60, Math.min(60, mouse.x - mouse.px)), mvy = Math.max(-60, Math.min(60, mouse.y - mouse.py)); mouse.px = mouse.x; mouse.py = mouse.y;
   const speed = Math.min(40, Math.hypot(mvx, mvy));
   const R = Math.max(55, Math.min(piece * 1.3, 420)) + speed;
   const kf = Math.min(4, Math.max(1, piece / 30));   // grosse Stücke (beim Hineinzoomen) brauchen mehr Schwung
   if (p === lastP && !lastMoving && !bursts.length && speed <= .5) { requestAnimationFrame(tick); return; }   // Stillstand: nichts neu zeichnen
   lastP = p;
-  const T = now(), moving = [];
+  const T = now();
 
-  if (crumb && pe >= 1) {   // Logo ist komplett weggeflogen: nur noch die Überschrift
-    lastMoving = 0; bursts.length = 0;
-    for (const c of cells) { c.dx = c.dy = c.vx = c.vy = c.r = c.vr = 0; c.loose = false; }
+  if (crumb && pc >= 1) {   // Logo ist komplett weggebröckelt: nur noch die Überschrift
+    lastMoving = 0; bursts.length = 0; seams.length = 0;
+    for (const c of clusters) reset(c); for (const c of shardsL) { reset(c); c.free = false; }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawShards(p); ui(p);
     requestAnimationFrame(tick); return;
   }
 
-  const hits = bursts.splice(0);
-  for (const c of cells) {
-    if (c.word && !textAlpha) continue;
-    const hx = sx(c.ux + cu / 2), hy = sy(c.uy + cu / 2);
-    if (crumb) {
-      // Wie weit ist dieses Stück schon weggeflogen? Kurz davor zittert das ganze Logo
-      c.cr = pe ? Math.min(1, Math.max(0, (pe - c.cd) / (1 - c.cd))) : 0;
-      c.jit = 0;   // gezittert wird als Ganzes (siehe unten), sonst entstehen Nähte zwischen den Stücken
-    }
-    if (!c.cr) for (const b of hits) {
-      const ddx = hx + c.dx - b.x, ddy = hy + c.dy - b.y, d = Math.hypot(ddx, ddy) || 1, BR = Math.max(W < 640 ? 70 : 90, Math.min(piece * 2, 520));
-      if (d < BR) {
-        const f = (BR - d) / BR;
-        c.vx += (ddx / d * 9 + (Math.random() - .5) * 4) * f * kf; c.vy += (ddy / d * 9 + (Math.random() - .5) * 4) * f * kf;
-        c.vr += (Math.random() - .5) * f * .4; c.t = T; c.loose = true;
+  // ---- Treffer: Klick/Antippen (stark) und Mausbewegung (sanft) ----
+  const hits = bursts.splice(0).map(b => ({ x: b.x, y: b.y, R: Math.max(W < 640 ? 70 : 90, Math.min(piece * 2, 520)), f: 9, mx: 0, my: 0, rnd: 4 }));
+  if (speed > .5) hits.push({ x: mouse.x, y: mouse.y, R, f: 2.6, mx: mvx * .08, my: mvy * .08, rnd: 2.4 });
+  const push = (b, hx, hy, h, scale) => {
+    const ddx = hx - h.x, ddy = hy - h.y, d = Math.hypot(ddx, ddy) || 1;
+    if (d >= h.R) return;
+    const f = (h.R - d) / h.R * kf * scale;
+    b.vx += (ddx / d * h.f + h.mx + (Math.random() - .5) * h.rnd) * f;
+    b.vy += (ddy / d * h.f + h.my + (Math.random() - .5) * h.rnd) * f;
+    b.vr += (Math.random() - .5) * f * (h.f > 5 ? .35 : .18) / scale;
+    b.vt += (Math.random() - .5) * f * (h.f > 5 ? .5 : .25);     // Kippen nach vorne/hinten
+    b.t = T; b.loose = true;
+  };
+  if (hits.length) {
+    for (const c of clusters) {
+      const cxs = BX + c.cx * K, cys = BY + c.cy * K;
+      for (const h of hits) {
+        const hcx = cxs + c.dx, hcy = cys + c.dy, dC = Math.hypot(hcx - h.x, hcy - h.y);
+        if (dC > h.R + piece * 3) continue;
+        // Nahe am Treffer: in einzelne Scherben zersplittern
+        for (const sh of c.sh) {
+          if (sh.free || (sh.word && !textAlpha) || sh.cr) continue;
+          const e = eff(sh, K, BX, BY);
+          if (Math.hypot(e.cx + e.dx - h.x, e.cy + e.dy - h.y) < h.R * .42) {
+            sh.free = true; sh.dx = e.dx; sh.dy = e.dy; sh.r = e.r; sh.tl = e.tl; sh.vx = c.vx; sh.vy = c.vy; sh.vr = c.vr; sh.vt = c.vt;
+          }
+        }
+        // Weiter weg: der ganze Brocken fliegt (schwerer, dreht sich weniger)
+        if (c.sh.some(sh => !sh.free)) push(c, hcx, hcy, h, 1 / (c.m * .55 + .45));
       }
     }
-    if (speed > .5) {
-      const ddx = hx + c.dx - mouse.x, ddy = hy + c.dy - mouse.y, d2 = ddx * ddx + ddy * ddy;
-      if (d2 < R * R) {
-        const d = Math.sqrt(d2) || 1, f = (R - d) / R;
-        c.vx += (ddx / d * 2.6 + mvx * .08 + (Math.random() - .5) * 2.4) * f * kf;
-        c.vy += (ddy / d * 2.6 + mvy * .08 + (Math.random() - .5) * 2.4) * f * kf;
-        c.vr += (Math.random() - .5) * f * .2;
-        c.t = T; c.loose = true;
-      }
-    }
-    if (!c.loose) { if (c.cr || c.jit) moving.push(c); continue; }
-    // Erst frei schweben, dann zieht es die Stücke langsam zurück
-    const age = (T - c.t) / 1000;
-    const pull = age < .3 ? 0 : Math.min(1, (age - .3) / .8) ** 2 * .04;
-    c.vx += -c.dx * pull; c.vy += -c.dy * pull; c.vr += -c.r * pull;
-    let damp = age < .3 ? .93 : .88;
-    // Erst ganz am Ende des Zooms (bevor die Studio-Überschrift kommt) alles schnell zurückholen
-    const hurry = Math.min(1, Math.max(0, (p - .62) / .1));
-    if (hurry) { c.vx += -c.dx * .2 * hurry; c.vy += -c.dy * .2 * hurry; c.vr += -c.r * .2 * hurry; damp = Math.min(damp, .7); }
-    c.vx *= damp; c.vy *= damp; c.vr *= damp;
-    c.dx += c.vx; c.dy += c.vy; c.r += c.vr;
-    if (age > .5 && Math.abs(c.dx) < .2 && Math.abs(c.dy) < .2 && Math.abs(c.vx) < .05 && Math.abs(c.vy) < .05 && Math.abs(c.r) < .002) {
-      c.dx = c.dy = c.vx = c.vy = c.r = c.vr = 0; c.loose = false;
-      if (c.cr || c.jit) moving.push(c);
-    } else moving.push(c);
+    for (const sh of shardsL) if (sh.free && !(sh.word && !textAlpha)) for (const h of hits) push(sh, BX + sh.cx * K + sh.dx, BY + sh.cy * K + sh.dy, h, 1);
   }
 
-  // Zeichnen: ganzes Logo, Löcher wo Stücke fehlen, dann die Stücke selbst
-  lastMoving = moving.length;
+  // ---- Bewegung ----
+  for (const c of clusters) if (c.loose) step(c, T, p);
+  for (const sh of shardsL) {
+    if (sh.free) { if (sh.loose) step(sh, T, p); else if (!sh.cl.loose) sh.free = false; }   // wieder eingerastet
+    if (crumb) {
+      // Wie weit ist diese Scherbe schon abgebröckelt? Kurz davor zittert sie etwas
+      const st = sh.cd * .7;
+      sh.cr = Math.min(1, Math.max(0, (pc - st) / .3));
+      sh.jit = !sh.cr && pc > 0 && pc > st - .06 ? Math.sin(pc * 900 + sh.cx * .7) * 1.3 * (1 - (st - pc) / .06) : 0;
+    }
+  }
+  const moving = [];
+  for (const sh of shardsL) {
+    if (sh.word && !textAlpha) continue;
+    if ((sh.free ? sh.loose : sh.cl.loose) || sh.cr || sh.jit) moving.push(sh);
+  }
+  const now2 = T; seams = seams.filter(m => now2 - m.T < 750);
+
+  lastMoving = moving.length + seams.length;
   if (!moving.length) {
-    // Nichts fliegt herum: Logo direkt zeichnen, ohne Umweg über das Hilfsbild (halbiert die Arbeit beim Scrollen)
+    // Nichts fliegt herum: Logo direkt zeichnen, ohne Umweg über das Hilfsbild
+    if (off.key && off.key.startsWith('atlas')) off.key = '';
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
-    { const k = k0 * s; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
-    if (shake) { const k = k0 * s, jx = Math.sin(p * 2600) * 2.2 * shake, jy = Math.cos(p * 3100) * 1.2 * shake; ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * (sx(0) + jx), dpr * (sy(0) + jy)); }
-    drawLogo(textAlpha, ctx); drawCracks(ctx, cq);
+    ctx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
+    drawLogo(textAlpha, ctx); drawSeams(T, K);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawShards(p);
-    ui(p);
+    drawShards(p); ui(p);
     requestAnimationFrame(tick); return;
   }
-  // Hilfsbild nur neu zeichnen, wenn sich Zoom, Schrift oder Risse geändert haben (bei der Explosion bleibt es gleich)
-  const offKey = s + '|' + textAlpha + '|' + cq + '|' + W + '|' + H;
-  if (offKey !== off.key) {
-    off.key = offKey;
-    octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
-    { const k = k0 * s; octx.setTransform(dpr * k, 0, 0, dpr * k, dpr * sx(0), dpr * sy(0)); }
-    drawLogo(textAlpha, octx); drawCracks(octx, cq);
-  }
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(off, 0, 0);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  for (const c of moving) ctx.clearRect(sx(c.ux) - .4, sy(c.uy) - .4, piece + .8, piece + .8);
-  let ga = 1;
-  for (const c of moving) {
-    let ex = c.dx + c.jit, ey = c.dy, rot = c.r, al = 1;
-    if (c.cr) {
-      const t = c.cr; if (t >= 1) continue;
-      // platzt schnell nach aussen weg und wird dabei langsamer (wie eine Explosion)
-      const e = 1 - Math.pow(1 - t, 2.4), far = Math.max(W, H) * (.55 + c.fy * .6);
-      ex += c.ex * e * far; ey += c.ey * e * far;
-      rot += c.fr * e * 7;
-      al = t < .6 ? 1 : 1 - (t - .6) / .4;
+  // Schatten (leicht versetzt, je höher die Scherbe "fliegt", desto weiter weg), dann die Scherben
+  const list = [];
+  for (const sh of moving) {
+    const e = eff(sh, K, BX, BY);
+    let al = 1;
+    if (sh.cr) {
+      const t = sh.cr; if (t >= 1) continue;
+      // löst sich, hüpft minim hoch und fällt dann immer schneller nach unten weg – und kippt dabei
+      e.dx += sh.fx * t * 50;
+      e.dy += t * t * H * (.55 + sh.fy * .45) - Math.sin(t * Math.PI) * 14;
+      e.r += sh.fr * t * 5; e.tl += sh.fr * t * 4;
+      al = t < .5 ? 1 : 1 - (t - .5) / .5;
     }
-    const x0 = sx(c.ux), y0 = sy(c.uy), hx = x0 + piece / 2 + ex, hy = y0 + piece / 2 + ey;
-    if (hx < -piece || hy < -piece || hx > W + piece || hy > H + piece) continue;
-    // Ausschnitt auf den sichtbaren Bereich begrenzen (Safari mag keine Ausschnitte ausserhalb des Bildes)
-    const ax = Math.max(0, x0), ay = Math.max(0, y0), bx = Math.min(W, x0 + piece), by = Math.min(H, y0 + piece);
-    if (bx <= ax || by <= ay) continue;
-    if (al !== ga) ctx.globalAlpha = ga = al;
-    const co = Math.cos(rot) * dpr, sn = Math.sin(rot) * dpr;
-    ctx.setTransform(co, sn, -sn, co, hx * dpr, hy * dpr);
-    ctx.drawImage(off, ax * dpr, ay * dpr, (bx - ax) * dpr, (by - ay) * dpr, ax - x0 - piece / 2, ay - y0 - piece / 2, bx - ax, by - ay);
+    e.dx += sh.jit;
+    const hx = e.cx + e.dx, hy = e.cy + e.dy;
+    if (hx < -piece * 2 || hy < -piece * 2 || hx > W + piece * 2 || hy > H + piece * 2) continue;
+    e.al = al; e.lift = Math.min(1, Math.hypot(e.dx, e.dy) / 40 + Math.abs(Math.sin(e.tl)) * .5);
+    e.sh = sh; list.push(e);
+  }
+  const useAtlas = s < 1.0005 && textAlpha === 1;
+  if (useAtlas) {
+    // ---- schneller Weg: vorbereitete Scherbenbilder ----
+    // Das Hilfsbild ist das "stehende" Logo: Scherben, die sich lösen, werden EINMAL daraus ausgestanzt
+    // und beim Einrasten wieder eingesetzt – statt in jedem Bild alle Löcher neu zu stanzen
+    if (off.key !== 'atlas|' + W + '|' + H) {
+      off.key = 'atlas|' + W + '|' + H;
+      octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
+      octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawLogo(1, octx);
+      for (const sh of shardsL) sh.baked = false;
+    }
+    for (const sh of moving) sh.mv = T;
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    let bakedN = 0;
+    for (const sh of shardsL) {
+      const want = sh.mv === T;
+      if (want !== !!sh.baked) {
+        const q = sh.sp;
+        octx.globalCompositeOperation = want ? 'destination-out' : 'source-over';
+        octx.drawImage(want ? mask : atlas, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
+        sh.baked = want;
+      }
+      if (sh.baked) bakedN++;
+    }
+    octx.globalCompositeOperation = 'source-over';
+    if (!bakedN) off.key = '';   // alles wieder an seinem Platz: nächstes Mal sauber neu zeichnen
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(off, 0, 0);
+    ctx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY); drawSeams(T, K);
+    // Schatten nur, solange nicht zu viele Scherben gleichzeitig fliegen (spart beim Zerbröckeln auf dem Handy)
+    // (beim Zerbröckeln auf dem Handy ohne Schatten – die Stücke fallen ohnehin weg, und so bleibt es flüssig)
+    if (list.length < 140) for (const e of list) { if (e.lift < .05 || e.sh.cr) continue; ctx.globalAlpha = .13 * e.lift * e.al; spr(e, 2 + e.lift * 5, 3 + e.lift * 8); }
+    for (const e of list) { ctx.globalAlpha = e.al * (1 - .38 * Math.abs(Math.sin(e.tl))); spr(e, 0, 0); }
+  } else {
+    // Hilfsbild nur neu zeichnen, wenn sich Zoom oder Schrift geändert haben
+    const offKey = s + '|' + textAlpha + '|' + W + '|' + H;
+    if (offKey !== off.key || !pattern) {
+      off.key = offKey;
+      octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, off.width, off.height);
+      octx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
+      drawLogo(textAlpha, octx);
+      pattern = ctx.createPattern(off, 'no-repeat');
+    }
+    // Das Muster so legen, dass es in Logo-Einheiten genau auf dem Logo liegt
+    pattern.setTransform(new DOMMatrix([1 / (dpr * K), 0, 0, 1 / (dpr * K), -BX / K, -BY / K]));
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(off, 0, 0);
+    // Löcher, wo Scherben fehlen
+    ctx.setTransform(dpr * K, 0, 0, dpr * K, dpr * BX, dpr * BY);
+    // mit voller Deckkraft ausschneiden (sonst bleibt ein feiner Umriss stehen)
+    ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.1 / K; ctx.lineJoin = 'round';
+    for (const sh of moving) { ctx.fill(sh.path); ctx.stroke(sh.path); }
+    ctx.globalCompositeOperation = 'source-over';
+    drawSeams(T, K);
+
+    ctx.fillStyle = pattern; ctx.strokeStyle = pattern; ctx.lineWidth = .9 / K;
+    for (const e of list) {   // Schatten
+      if (e.lift < .05) continue;
+      ctx.globalAlpha = .13 * e.lift * e.al;
+      setM(e, K, BX, BY, 2 + e.lift * 5, 3 + e.lift * 8);
+      ctx.fill(e.sh.path);
+    }
+    for (const e of list) {   // Scherben: beim Kippen fängt die Kante Licht (wird etwas heller)
+      ctx.globalAlpha = e.al * (1 - .38 * Math.abs(Math.sin(e.tl)));
+      setM(e, K, BX, BY, 0, 0);
+      ctx.fill(e.sh.path); ctx.stroke(e.sh.path);
+    }
   }
   ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   drawShards(p); ui(p);
   requestAnimationFrame(tick);
+}
+function reset(b) { b.dx = b.dy = b.vx = b.vy = b.r = b.vr = b.tl = b.vt = 0; b.loose = false; }
+// Federn: erst frei schweben, dann zurückziehen – mit leichtem Überschwingen beim Einrasten
+function step(b, T, p) {
+  const age = (T - b.t) / 1000;
+  const pull = age < .3 ? 0 : Math.min(1, (age - .3) / .8) ** 2 * .055;
+  b.vx += -b.dx * pull; b.vy += -b.dy * pull; b.vr += -b.r * pull; b.vt += -b.tl * pull * 1.4;
+  let damp = age < .3 ? .93 : .86;
+  // Erst ganz am Ende des Zooms (bevor die Studio-Überschrift kommt) alles schnell zurückholen
+  const hurry = Math.min(1, Math.max(0, (p - .62) / .1));
+  if (hurry) { b.vx += -b.dx * .2 * hurry; b.vy += -b.dy * .2 * hurry; b.vr += -b.r * .2 * hurry; b.vt += -b.tl * .2 * hurry; damp = Math.min(damp, .7); }
+  b.vx *= damp; b.vy *= damp; b.vr *= damp; b.vt *= damp;
+  b.dx += b.vx; b.dy += b.vy; b.r += b.vr; b.tl += b.vt;
+  if (age > .5 && Math.abs(b.dx) < .2 && Math.abs(b.dy) < .2 && Math.abs(b.vx) < .05 && Math.abs(b.vy) < .05 && Math.abs(b.r) < .002 && Math.abs(b.tl) < .01) {
+    reset(b);
+    // eingerastet: Bruchlinien kurz als feine Nähte zeigen
+    seams.push({ T, list: b.sh ? b.sh.filter(x => !x.free) : [b] });
+  }
+}
+// Aktuelle Lage einer Scherbe auf dem Bildschirm: eigene Bewegung, oder die ihres Brockens
+function eff(sh, K, BX, BY) {
+  const cx = BX + sh.cx * K, cy = BY + sh.cy * K;
+  if (sh.free || !sh.cl.loose) return { cx, cy, dx: sh.free ? sh.dx : 0, dy: sh.free ? sh.dy : 0, r: sh.free ? sh.r : 0, tl: sh.free ? sh.tl : 0 };
+  const c = sh.cl, Cx = BX + c.cx * K, Cy = BY + c.cy * K, ct = Math.cos(c.tl), co = Math.cos(c.r), si = Math.sin(c.r);
+  const vx = (cx - Cx) * ct, vy = cy - Cy;
+  const nx = Cx + c.dx + co * vx - si * vy, ny = Cy + c.dy + si * vx + co * vy;
+  return { cx, cy, dx: nx - cx, dy: ny - cy, r: c.r, tl: c.tl };
+}
+// Transformation: Logo-Einheiten → Bildschirm, gedreht und gekippt um die Scherbenmitte
+function setM(e, K, BX, BY, ox_, oy_) {
+  const co = Math.cos(e.r), si = Math.sin(e.r), ct = Math.cos(e.tl);
+  const a = co * ct, b = si * ct, c = -si, d = co;
+  const ex = e.cx + e.dx + ox_, ey = e.cy + e.dy + oy_;
+  ctx.setTransform(dpr * K * a, dpr * K * b, dpr * K * c, dpr * K * d,
+    dpr * (a * (BX - e.cx) + c * (BY - e.cy) + ex), dpr * (b * (BX - e.cx) + d * (BY - e.cy) + ey));
+}
+// Scherbenbild gedreht und gekippt um die Scherbenmitte zeichnen (nur bei Zoom 1)
+function spr(e, ox_, oy_) {
+  const co = Math.cos(e.r), si = Math.sin(e.r), ct = Math.cos(e.tl);
+  const a = co * ct, b = si * ct, c = -si, d = co, q = e.sh.sp;
+  const ex = e.cx + e.dx + ox_, ey = e.cy + e.dy + oy_;
+  ctx.setTransform(dpr * a, dpr * b, dpr * c, dpr * d, dpr * (ex - a * e.cx - c * e.cy), dpr * (ey - b * e.cx - d * e.cy));
+  ctx.drawImage(atlas, q.ax * dpr, q.ay * dpr, q.w * dpr, q.h * dpr, q.sx0, q.sy0, q.w, q.h);
+}
+// Feine helle Nähte an frisch eingerasteten Scherben, die schnell verblassen
+function drawSeams(T, K) {
+  if (!seams.length) return;
+  ctx.strokeStyle = '#eee8dd'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.1 / K;
+  for (const m of seams) {
+    ctx.globalAlpha = Math.max(0, 1 - (T - m.T) / 750) * .9;
+    for (const sh of m.list) ctx.stroke(sh.path);
+  }
+  ctx.globalAlpha = 1;
 }
 function ui(p) {
   const a = Math.min(1, Math.max(0, (p - .82) / .12));
