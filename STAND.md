@@ -16,6 +16,8 @@
 - 24.09.2026: Logo bleibt beim Hineinzoomen zerstörbar; Monatsring im ChefKlick-Handy baut sich komplett auf; Gesamtprüfung, Schriften im Impressum ergänzt, CNAME für canuma.ch
 - 24.09.2026: ONLINE unter https://canuma.ch – GitHub Pages aktiv, DNS bei Hostpoint (4× A 185.199.108–111.153, 4× AAAA 2606:50c0:8000–8003::153, CNAME www → canuma-studio.github.io; alte Hostpoint-A/AAAA für canuma.ch gelöscht, Mail-Einträge unverändert), Enforce HTTPS an; SPF/DKIM/DMARC vorhanden
 
+- 21.10.2026: Impressum und Datenschutz aus sitemap.xml entfernt (sind noindex, sonst Warnung in der Google Search Console)
+
 ## Design
 - Hintergrund überall helles Beige #eee8dd, alle Elemente Anthrazit #1c1c1c
 - Hausschrift TeX Gyre Adventor (fonts/), Fliesstext Systemschrift, Labels Monospace
