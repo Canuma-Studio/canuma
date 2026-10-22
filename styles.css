@@ -156,12 +156,19 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 .ck-tabs .on { background: #e1e8f4; color: #163A7C; font-weight: 700; }
 
 /* Webseiten: Browserfenster – Skizze, Gestaltung, Handy */
-.browser { width: min(86%, 560px); height: min(72%, 400px); background: var(--beige); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: width .9s cubic-bezier(.7,0,.2,1); box-shadow: 0 30px 70px rgba(0,0,0,.35); }
-.browser.mobile { width: 190px; }
-.bar { flex: none; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; background: var(--beige-2); }
-.bar i { width: 7px; height: 7px; border-radius: 50%; background: #c7bfb1; }
-.bar span { margin: 0 auto; font: 10px var(--mono); color: var(--muted); background: var(--beige); padding: 3px 12px; border-radius: 99px; transform: translateX(-12px); white-space: nowrap; }
-.site { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; container-type: inline-size; overflow: hidden; }
+.browser { position: relative; width: min(86%, 560px); height: min(72%, 400px); background: var(--beige); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 0 #0b0b0c, 0 0 0 0 #34343a, 0 30px 70px rgba(0,0,0,.35);
+  transition: width .8s cubic-bezier(.7,0,.2,1), height .8s cubic-bezier(.7,0,.2,1), border-radius .8s cubic-bezier(.7,0,.2,1), box-shadow .8s cubic-bezier(.7,0,.2,1); }
+.bar { position: relative; flex: none; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; background: var(--beige-2); transition: background .6s, height .6s; }
+.bar i { width: 7px; height: 7px; border-radius: 50%; background: #c7bfb1; transition: opacity .3s; }
+.bar span { margin: 0 auto; font: 10px var(--mono); color: var(--muted); background: var(--beige); padding: 3px 12px; border-radius: 99px; transform: translateX(-12px); white-space: nowrap; transition: opacity .3s; }
+.bar .island { position: absolute; left: 50%; top: 7px; width: 56px; height: 16px; margin-left: -28px; border-radius: 99px; background: #0b0b0c; opacity: 0; transform: scale(.4); transition: opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1); }
+/* Handy: das Fenster wird zum Telefon – runde Ecken, schwarzer Rahmen, Dynamic Island statt Adresszeile */
+.browser.mobile { width: 200px; height: min(calc(100% - 90px), 430px); border-radius: 32px; box-shadow: 0 0 0 7px #0b0b0c, 0 0 0 8px #34343a, 0 30px 70px rgba(0,0,0,.35); }
+.browser.mobile .bar { background: var(--beige); height: 30px; }
+.browser.mobile .bar i, .browser.mobile .bar span { opacity: 0; }
+.browser.mobile .bar .island { opacity: 1; transform: none; transition-delay: .35s; }
+.site { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; container-type: inline-size; overflow: hidden; transition: opacity .28s, transform .28s; }
+.browser.swap .site { opacity: 0; transform: translateY(8px) scale(.98); }
 .s-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; }
 .s-nav b { font-family: var(--display); font-weight: 400; font-size: 13px; }
 .s-nav span { color: var(--muted); font-size: 10px; }
@@ -169,29 +176,35 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 .s-img { border-radius: 8px; min-height: 90px; }
 .s-copy { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; }
 .s-copy h4 { font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.05; margin: 0; }
+.s-copy h4.typing::after { content: ''; display: inline-block; width: 1.5px; height: .85em; margin-left: 2px; vertical-align: -.05em; background: currentColor; animation: caret .8s steps(1) infinite; }
 .s-copy p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
 .s-btn { font: 10px var(--mono); background: var(--ink); color: var(--beige); padding: 6px 12px; border-radius: 99px; }
 .s-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; height: 22%; min-height: 44px; }
-/* Skizzen-Zustand: Text als graue Balken, Flächen als gestrichelte Rahmen */
-.w, .wb { transition: color .5s var(--d, 0s), background .6s var(--d, 0s), outline-color .6s var(--d, 0s), border-radius .6s var(--d, 0s); }
-.browser:not(.styled) .w { color: transparent; background: #d8d0c2; border-radius: 3px; }
-.browser:not(.styled) .s-btn { background: #d8d0c2; }
+/* Skizze: Text als graue Balken, Flächen als gestrichelte Rahmen.
+   Die Seite baut sich Element für Element auf (Klasse .on, gesetzt von script.js); .styled = alles fertig. */
+.w, .wb { transition: color .45s, background-color .45s, outline-color .45s, border-radius .45s; }
+.browser:not(.styled) .w:not(.on) { color: transparent; background: #d8d0c2; border-radius: 3px; }
 .wb { position: relative; border-radius: 8px; outline: 1.5px dashed #a39d92; outline-offset: -1.5px; background: transparent; }
-.wb::after { content: attr(data-l); position: absolute; inset: 0; display: grid; place-items: center; font: 9px var(--mono); color: #a39d92; transition: opacity .4s var(--d, 0s); }
-.browser.styled .wb { outline-color: transparent; }
-.browser.styled .wb::after { opacity: 0; }
-.browser.styled .s-img { background: #10161d url(images/web/scoff-logo.png) center / auto 70% no-repeat; }
-.browser.styled .s-row .wb { background: #fff center / contain no-repeat; }
-.browser.styled .s-row .wb:nth-child(1) { background-image: url(images/web/wein-urbano.jpg); }
-.browser.styled .s-row .wb:nth-child(2) { background-image: url(images/web/wein-lacrima.jpg); }
-.browser.styled .s-row .wb:nth-child(3) { background-image: url(images/web/likoer-visciola.jpg); }
-.browser.styled .s-btn { background: #ff6a2b; color: #fff; }
+.wb::after { content: attr(data-l); position: absolute; inset: 0; display: grid; place-items: center; font: 9px var(--mono); color: #a39d92; transition: opacity .3s; }
+.browser.styled .wb, .wb.on { outline-color: transparent; }
+.browser.styled .wb::after, .wb.on::after { opacity: 0; }
+.browser.styled .s-img, .s-img.on { background: url(images/web/scoff-logo.png) center / auto 78% no-repeat; }
+.browser.styled .s-row .wb, .s-row .wb.on { background: #fff center / contain no-repeat; }
+.browser.styled .s-row .wb:nth-child(1), .s-row .wb.on:nth-child(1) { background-image: url(images/web/wein-urbano.jpg); }
+.browser.styled .s-row .wb:nth-child(2), .s-row .wb.on:nth-child(2) { background-image: url(images/web/wein-lacrima.jpg); }
+.browser.styled .s-row .wb:nth-child(3), .s-row .wb.on:nth-child(3) { background-image: url(images/web/likoer-visciola.jpg); }
+.browser.styled .s-btn, .s-btn.on { background: #ff6a2b; color: #fff; }
+.s-img.on, .s-btn.on { animation: pop .55s cubic-bezier(.2,.9,.25,1.2) both; }
+.s-row .wb.on { animation: lift .6s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pop { from { transform: scale(.88); opacity: .4; } }
+@keyframes lift { from { transform: translateY(12px); opacity: 0; } }
+@keyframes caret { 50% { opacity: 0; } }
 @container (max-width: 300px) {
   .s-nav span { display: none; }
-  .s-hero { grid-template-columns: 1fr; gap: 10px; }
-  .s-img { min-height: 70px; }
-  .s-copy h4 { font-size: 18px; }
-  .s-row { grid-template-columns: 1fr 1fr; }
+  .s-hero { grid-template-columns: 1fr; gap: 12px; flex: none; }
+  .s-img { min-height: 110px; }
+  .s-copy h4 { font-size: 19px; }
+  .s-row { grid-template-columns: 1fr 1fr; height: auto; flex: 1; min-height: 70px; max-height: 120px; }
   .s-row .wb:nth-child(3) { display: none; }
 }
 .phase { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; gap: 22px; margin: 0; padding: 0; list-style: none; font: 11px var(--mono); color: #6d6960; }
@@ -223,6 +236,14 @@ footer { color: var(--muted); font-size: 13px; padding: 24px clamp(16px, 4vw, 48
 #p-app .visual { background: none; overflow: visible; }
 #p-app .visual::before { display: none; }
 #p-app .phone { box-shadow: 0 0 0 1px #2a2a2e, 0 30px 60px rgba(28,28,28,.28), 0 8px 20px rgba(28,28,28,.15); }
+
+/* Webseiten: Browser und Handy ohne dunkle Fläche, wie bei ChefKlick */
+#p-web .visual { background: none; overflow: visible; }
+#p-web .visual::before { display: none; }
+#p-web .browser { box-shadow: 0 0 0 1px rgba(28,28,28,.08), 0 0 0 0 #34343a, 0 30px 60px rgba(28,28,28,.2), 0 8px 20px rgba(28,28,28,.1); }
+#p-web .browser.mobile { box-shadow: 0 0 0 7px #0b0b0c, 0 0 0 8px #34343a, 0 30px 60px rgba(28,28,28,.28), 0 8px 20px rgba(28,28,28,.15); }
+#p-web .phase { color: #a39d92; }
+#p-web .phase li.on { color: var(--ink); }
 
 @media (max-width: 860px) {
   .panel { grid-template-columns: 1fr; }

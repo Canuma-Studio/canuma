@@ -780,41 +780,42 @@ const loops = [
       }
     }
   },
-  // 02 Webseiten: Skizze -> Gestaltung -> Handy
+  // 02 Webseiten: Skizze -> die Seite baut sich Stück für Stück auf -> das Fenster wird zum Handy
   (() => {
     const br = document.querySelector('.browser'), ph = [...document.querySelectorAll('.phase li')];
-    const show = (styled, mobile, i) => { br.classList.toggle('styled', styled); br.classList.toggle('mobile', mobile); ph.forEach((l, k) => l.classList.toggle('on', k === i)); };
-    return {
-      final() { show(true, false, 1); },
-      async run(alive) {
-        while (alive()) {
-          show(false, false, 0); await sleep(1900); if (!alive()) return;
-          show(true, false, 1); await sleep(2800); if (!alive()) return;
-          show(true, true, 2); await sleep(3000); if (!alive()) return;
-          show(true, false, 1); await sleep(1400);
-        }
-      }
+    const items = [...br.querySelectorAll('.w, .wb')];
+    const h4 = br.querySelector('.s-copy h4'), full = h4.textContent;
+    const phase = i => ph.forEach((l, k) => l.classList.toggle('on', k === i));
+    const reset = () => {
+      br.classList.remove('styled', 'mobile', 'swap');
+      items.forEach(e => e.classList.remove('on'));
+      h4.classList.remove('typing'); h4.textContent = full;
     };
-  })(),
-  // 03 Fotografie: Sucher sucht den Fokus, stellt scharf, löst aus – der Teller dreht sich langsam
-  (() => {
-    const plate = document.querySelector('.plate'), af = document.querySelector('.af'), flash = document.querySelector('.vf-flash');
-    const spots = [['38%', '40%'], ['66%', '44%'], ['50%', '52%']];
-    let k = 0;
+    // Inhalt kurz ausblenden, Rahmen verwandeln, Inhalt im neuen Layout wieder einblenden
+    const morph = async (alive, toMobile) => {
+      br.classList.add('swap'); await sleep(300); if (!alive()) return false;
+      br.classList.toggle('mobile', toMobile); await sleep(780); if (!alive()) return false;
+      br.classList.remove('swap'); return true;
+    };
     return {
-      final() { plate.classList.add('sharp'); af.classList.add('gone'); },
+      final() { reset(); br.classList.add('styled'); phase(1); },
       async run(alive) {
         while (alive()) {
-          plate.classList.remove('sharp'); af.classList.remove('gone', 'hunt');
-          const [x, y] = spots[k++ % spots.length]; af.style.setProperty('--ax', x); af.style.setProperty('--ay', y);
-          await sleep(900); if (!alive()) return;
-          void af.offsetWidth; af.classList.add('hunt');
-          await sleep(650); if (!alive()) return;
-          plate.classList.add('sharp');
-          await sleep(500); if (!alive()) return;
-          flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-          await sleep(600); af.classList.add('gone');
-          await sleep(5200);
+          reset(); phase(0); await sleep(1700); if (!alive()) return;
+          phase(1);
+          for (const e of items) {
+            if (e === h4) {
+              h4.textContent = ''; h4.classList.add('on', 'typing');
+              for (const ch of full) { h4.textContent += ch; await sleep(55); if (!alive()) return; }
+              await sleep(250); h4.classList.remove('typing');
+            } else e.classList.add('on');
+            await sleep(e.classList.contains('wb') ? 280 : 170); if (!alive()) return;
+          }
+          await sleep(1700); if (!alive()) return;
+          phase(2); if (!await morph(alive, true)) return;
+          await sleep(3400); if (!alive()) return;
+          phase(1); if (!await morph(alive, false)) return;
+          await sleep(1500);
         }
       }
     };
